@@ -9,20 +9,20 @@
 
     /* ── Design tokens ───────────────────────────────────────────── */
     :root {
-      --bg:          linear-gradient(155deg, #060c1e 0%, #0b1a38 50%, #130525 100%);
-      --glass:       rgba(255,255,255,0.055);
-      --glass-hover: rgba(255,255,255,0.09);
-      --border:      rgba(255,255,255,0.09);
-      --border-mid:  rgba(255,255,255,0.13);
-      --text:        #e8f0fe;
-      --text-sub:    rgba(255,255,255,0.42);
-      --text-faint:  rgba(255,255,255,0.2);
-      --green:       #34d399;
-      --green-glow:  rgba(52,211,153,0.18);
-      --gold:        #fbbf24;
-      --gold-glow:   rgba(251,191,36,0.18);
-      --red:         #f87171;
-      --connector:   rgba(255,255,255,0.1);
+      --bg:          linear-gradient(155deg, #f0fdf4 0%, #dcfce7 50%, #ecfdf5 100%);
+      --glass:       rgba(255,255,255,0.7);
+      --glass-hover: rgba(255,255,255,0.88);
+      --border:      rgba(34,197,94,0.18);
+      --border-mid:  rgba(34,197,94,0.32);
+      --text:        #14532d;
+      --text-sub:    #4b7a5e;
+      --text-faint:  #86b89a;
+      --green:       #16a34a;
+      --green-glow:  rgba(22,163,74,0.12);
+      --gold:        #ca8a04;
+      --gold-glow:   rgba(202,138,4,0.15);
+      --red:         #dc2626;
+      --connector:   rgba(34,197,94,0.25);
     }
 
     body {
@@ -40,9 +40,7 @@
     }
     header h1 {
       font-size: clamp(1.4rem, 4vw, 2.4rem); font-weight: 800; letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #93c5fd 0%, #c4b5fd 50%, #86efac 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--text);
     }
     header p { margin-top: 10px; color: var(--text-sub); font-size: 0.85rem; letter-spacing: 0.4px; }
     #status-bar {
@@ -75,12 +73,12 @@
 
     /* ── Match card ──────────────────────────────────────────────── */
     .match {
-      width: 162px;
+      width: 172px;
       background: var(--glass);
       border: 1px solid var(--border);
       border-radius: 10px; overflow: hidden; flex-shrink: 0;
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
       transition: border-color 0.35s, box-shadow 0.35s, background 0.35s;
     }
     .match:hover {
@@ -92,12 +90,12 @@
     /* Final card — gold shimmer */
     .final-col .match {
       width: 174px;
-      background: rgba(251,191,36,0.07);
-      border-color: rgba(251,191,36,0.28);
-      box-shadow: 0 0 32px var(--gold-glow), 0 4px 20px rgba(0,0,0,0.4);
+      background: rgba(202,138,4,0.06);
+      border-color: rgba(202,138,4,0.35);
+      box-shadow: 0 0 24px var(--gold-glow), 0 4px 16px rgba(0,0,0,0.08);
     }
     .final-col .match:hover {
-      box-shadow: 0 0 44px var(--gold-glow), 0 6px 28px rgba(0,0,0,0.5);
+      box-shadow: 0 0 36px var(--gold-glow), 0 6px 24px rgba(0,0,0,0.1);
     }
 
     /* ── Match footer ────────────────────────────────────────────── */
@@ -110,7 +108,7 @@
     .match-footer.final { color: var(--text-sub); }
 
     /* ── Team row ────────────────────────────────────────────────── */
-    .team { padding: 7px 10px 6px; display: flex; align-items: center; position: relative; }
+    .team { padding: 8px 10px 7px; display: flex; align-items: center; position: relative; }
     .team:first-child { border-bottom: 1px solid var(--border); }
     .team { transition: background 0.35s, opacity 0.35s; }
 
@@ -185,9 +183,9 @@
       transition: border-color 0.3s, box-shadow 0.3s;
     }
     .lb-card.leader {
-      border-color: rgba(52,211,153,0.45);
-      background: rgba(52,211,153,0.08);
-      box-shadow: 0 0 20px rgba(52,211,153,0.12);
+      border-color: rgba(22,163,74,0.5);
+      background: rgba(22,163,74,0.08);
+      box-shadow: 0 0 16px rgba(22,163,74,0.12);
     }
     .lb-name { font-size: 0.85rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
     .lb-counts { font-size: 0.65rem; color: var(--text-sub); margin-bottom: 8px; }
@@ -200,7 +198,7 @@
     /* ── Loading overlay ─────────────────────────────────────────── */
     #loading-overlay {
       position: fixed; inset: 0; z-index: 999;
-      background: linear-gradient(155deg, #060c1e 0%, #0b1a38 50%, #130525 100%);
+      background: linear-gradient(155deg, #f0fdf4 0%, #dcfce7 50%, #ecfdf5 100%);
       overflow: hidden; transition: opacity 0.55s ease;
     }
     #loading-overlay.hidden { opacity: 0; pointer-events: none; }
@@ -607,7 +605,7 @@ function buildCol(label, matchNums, slotPx, cls = "") {
     <div class="round-label">${label}</div>${slots}</div>`;
 }
 
-const H = 800; // total bracket height px; slot = H / count
+const H = 880; // total bracket height px; slot = H / count
 
 function render() {
   document.getElementById("bracket").innerHTML = [
@@ -689,7 +687,7 @@ async function refresh() {
     processEvents(events);
     render();
     renderLeaderboard();
-    bar.textContent = `Updated ${new Date().toLocaleTimeString("en-US",{timeZone:"America/Los_Angeles"})} PT · auto-refreshes every 5 min`;
+    bar.textContent = `Updated ${new Date().toLocaleTimeString("en-US",{timeZone:"America/Los_Angeles"})} PT`;
   } catch (e) {
     bar.textContent = "Could not reach ESPN — showing cached data";
   }
