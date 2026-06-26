@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>World Cup 2026 — Friend Group Pool</title>
+  <title>NCYSD World Cup 2026</title>
+  <meta property="og:title"       content="NCYSD World Cup 2026">
+  <meta property="og:description" content="Friend group bracket pool — track your teams through the knockout rounds.">
+  <meta property="og:image"       content="https://ncysdworldcup2026.netlify.app/og-image.svg">
+  <meta property="og:url"         content="https://ncysdworldcup2026.netlify.app/">
+  <meta property="og:type"        content="website">
+  <meta name="twitter:card"       content="summary_large_image">
+  <meta name="twitter:image"      content="https://ncysdworldcup2026.netlify.app/og-image.svg">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -43,12 +50,7 @@
       color: var(--text);
     }
     header p { margin-top: 10px; color: var(--text-sub); font-size: 0.85rem; letter-spacing: 0.4px; }
-    #status-bar {
-      text-align: center; font-size: 0.63rem; color: var(--text-faint);
-      padding: 8px 0 0; letter-spacing: 0.5px;
-    }
-
-    /* ── Legend ──────────────────────────────────────────────────── */
+/* ── Legend ──────────────────────────────────────────────────── */
     .legend {
       display: flex; flex-wrap: wrap; justify-content: center;
       gap: 5px 12px; padding: 16px 24px 0; max-width: 960px; margin: 0 auto;
@@ -106,6 +108,10 @@
     }
     .match-footer.live  { color: var(--red); font-weight: 700; letter-spacing: 1px; }
     .match-footer.final { color: var(--text-sub); }
+    .match-venue {
+      font-size: 0.53rem; color: var(--text-faint); text-align: center;
+      padding: 2px 6px 4px; letter-spacing: 0.2px; opacity: 0.8;
+    }
 
     /* ── Team row ────────────────────────────────────────────────── */
     .team { padding: 8px 10px 7px; display: flex; align-items: center; position: relative; }
@@ -290,9 +296,8 @@
 </div>
 
 <header>
-  <h1>⚽ World Cup 2026 — Friend Group Pool</h1>
+  <h1>⚽ NCYSD World Cup 2026</h1>
   <p>$20 buy-in &nbsp;·&nbsp; 5 teams each &nbsp;·&nbsp; Belgium = money back</p>
-  <div id="status-bar">Loading…</div>
 </header>
 
 <div class="legend" id="legend"></div>
@@ -418,6 +423,7 @@ function initState() {
       scoreA: null, scoreB: null,
       status: "upcoming", winner: null,
       timeET: d.timeET, date: d.date,
+      venue: null,
     };
   }
 }
@@ -514,6 +520,18 @@ function processEvents(events) {
              : espnStatus === "STATUS_IN_PROGRESS"  ? "live"
              : "upcoming";
     m.winner = wA ? "A" : wB ? "B" : null;
+
+    const v = comp.venue;
+    if (v) {
+      const city  = v.address?.city;
+      const state2 = v.address?.state;
+      const country = v.address?.country;
+      if (city) {
+        m.venue = (state2 && country === "US") ? `${city}, ${state2}` : city;
+      } else if (v.fullName) {
+        m.venue = v.fullName;
+      }
+    }
   }
 }
 
@@ -579,6 +597,7 @@ function matchCardHTML(matchNum) {
     ${teamRowHTML("teamA", m)}
     ${teamRowHTML("teamB", m)}
     ${footer ? `<div class="match-footer ${footerCls}">${footer}</div>` : ""}
+    ${m.venue ? `<div class="match-venue">📍 ${m.venue}</div>` : ""}
   </div>`;
 }
 
@@ -610,7 +629,7 @@ function buildCol(label, matchNums, slotPx, cls = "") {
     <div class="round-label">${label}</div>${slots}</div>`;
 }
 
-const H = 880; // total bracket height px; slot = H / count
+const H = 1040; // total bracket height px; slot = H / count
 
 function render() {
   document.getElementById("bracket").innerHTML = [
@@ -685,17 +704,12 @@ setTimeout(dismissOverlay, 5600);
 
 /* ── MAIN LOOP ───────────────────────────────────────────────────────────── */
 async function refresh() {
-  const bar = document.getElementById("status-bar");
-  bar.textContent = "Updating…";
   try {
     const events = await fetchESPN();
     processEvents(events);
     render();
     renderLeaderboard();
-    bar.textContent = `Updated ${new Date().toLocaleTimeString("en-US",{timeZone:"America/Los_Angeles"})} PT`;
-  } catch (e) {
-    bar.textContent = "Could not reach ESPN — showing cached data";
-  }
+  } catch (e) {}
 }
 
 initState();
