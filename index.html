@@ -113,6 +113,22 @@
       font-size: 0.53rem; color: var(--text-faint); text-align: center;
       padding: 2px 6px 4px; letter-spacing: 0.2px; opacity: 0.8;
     }
+    .odds-pct {
+      display: inline-block; margin-left: 5px;
+      font-size: 0.55rem; font-weight: 600;
+      color: var(--text-faint); vertical-align: middle;
+      background: rgba(0,0,0,0.04); border-radius: 3px;
+      padding: 1px 4px; letter-spacing: 0;
+    }
+    .odds-pct.fav { background: rgba(22,163,74,0.12); color: var(--green); }
+    .odds-pct.dog { background: rgba(220,38,38,0.10); color: var(--red); }
+    .modal-odds {
+      display: flex; justify-content: space-between; align-items: center;
+      border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px;
+      font-size: 0.68rem; gap: 4px;
+    }
+    .modal-odds .o-team { color: var(--text-sub); font-weight: 700; text-align: center; flex: 1; }
+    .modal-odds .o-draw { color: var(--text-faint); text-align: center; font-size: 0.6rem; flex: 0.8; }
 
     /* ── Team row ────────────────────────────────────────────────── */
     .team { padding: 8px 10px 7px; display: flex; align-items: center; position: relative; }
@@ -205,6 +221,15 @@
     .lb-team { font-size: 0.71rem; color: var(--text-sub); white-space: nowrap; }
     .lb-team.out { color: var(--text-faint); text-decoration: line-through; opacity: 0.6; }
     .lb-rank { font-size: 0.65rem; color: var(--text-faint); float: right; }
+    .lb-champ-badge {
+      font-size: 0.65rem; font-weight: 700; color: var(--gold);
+      background: var(--gold-glow); border-radius: 4px; padding: 1px 6px;
+      margin-left: 6px; vertical-align: middle;
+    }
+    .lb-champ-pct {
+      font-size: 0.6rem; color: var(--gold); font-weight: 600;
+      margin-left: 5px; opacity: 0.85;
+    }
 
     /* ── Match detail modal ──────────────────────────────────────── */
     #match-modal {
@@ -438,7 +463,7 @@ const INITIAL = {
 // matches: matchNum → { teamA, teamB, scoreA, scoreB, status, winner }
 //   status: "upcoming" | "live" | "final"
 //   winner: "A" | "B" | null
-const state = { matches: {} };
+const state = { matches: {}, outrights: {} };
 
 function initState() {
   for (const [num, d] of Object.entries(INITIAL)) {
@@ -448,7 +473,7 @@ function initState() {
       scoreA: null, scoreB: null,
       status: "upcoming", winner: null,
       timeET: d.timeET, date: d.date,
-      venue: null,
+      venue: null, odds: null,
     };
   }
 }
@@ -583,6 +608,20 @@ function formatDate(dateStr) {
 }
 
 /* ── RENDER ──────────────────────────────────────────────────────────────── */
+function impliedPcts(odds) {
+  if (!odds) return { pctA: null, pctB: null };
+  const raw = p => p > 0 ? 100 / (p + 100) : Math.abs(p) / (Math.abs(p) + 100);
+  const rA = odds.priceA != null ? raw(odds.priceA) : 0;
+  const rD = odds.priceDraw != null ? raw(odds.priceDraw) : 0;
+  const rB = odds.priceB != null ? raw(odds.priceB) : 0;
+  const sum = rA + rD + rB || 1;
+  return {
+    pctA:    rA ? Math.round(rA / sum * 100) : null,
+    pctDraw: rD ? Math.round(rD / sum * 100) : null,
+    pctB:    rB ? Math.round(rB / sum * 100) : null,
+  };
+}
+
 function teamRowHTML(teamKey, m) {
   const name = m[teamKey] || null;
   const isWinner = m.winner === (teamKey === "teamA" ? "A" : "B");
@@ -598,10 +637,21 @@ function teamRowHTML(teamKey, m) {
   const scoreHTML = score != null
     ? `<div class="score${isWinner ? " winning" : ""}">${score}</div>` : "";
 
+  let pctTag = "";
+  if (m.odds && m.status === "upcoming") {
+    const pcts = impliedPcts(m.odds);
+    const pct  = teamKey === "teamA" ? pcts.pctA : pcts.pctB;
+    const other = teamKey === "teamA" ? pcts.pctB : pcts.pctA;
+    if (pct !== null) {
+      const cls = pct > other ? "fav" : pct < other ? "dog" : "";
+      pctTag = `<span class="odds-pct${cls ? " " + cls : ""}">${pct}%</span>`;
+    }
+  }
+
   return `<div class="team${isWinner?" winner":""}${isLoser?" loser":""}">
     <span class="flag">${flag}</span>
     <div class="team-info">
-      <div class="team-name">${name}</div>
+      <div class="team-name">${name}${pctTag}</div>
       ${owner ? `<div class="owner">${owner}</div>` : ""}
     </div>
     ${scoreHTML}
@@ -688,28 +738,47 @@ function computeLeaderboard() {
     if (loser) eliminated.add(loser);
   }
 
+  const hasOutrights = state.outrights && Object.keys(state.outrights).length > 0;
+
   return OWNERS
-    .map(o => ({
-      name:  o.name,
-      alive: o.teams.filter(t => !eliminated.has(t)),
-      out:   o.teams.filter(t =>  eliminated.has(t)),
-    }))
-    .sort((a, b) => b.alive.length - a.alive.length || a.out.length - b.out.length);
+    .map(o => {
+      const alive = o.teams.filter(t => !eliminated.has(t));
+      const out   = o.teams.filter(t =>  eliminated.has(t));
+      const champPct = hasOutrights
+        ? alive.reduce((s, t) => s + (teamOutrightPct(t) || 0), 0)
+        : null;
+      return { name: o.name, alive, out, champPct };
+    })
+    .sort((a, b) => {
+      if (a.champPct !== null && b.champPct !== null) return b.champPct - a.champPct;
+      return b.alive.length - a.alive.length || a.out.length - b.out.length;
+    });
 }
 
 function renderLeaderboard() {
   const rows = computeLeaderboard();
-  const maxAlive = rows[0]?.alive.length ?? 0;
+  const hasOdds = rows.some(r => r.champPct !== null);
+  const leader  = rows[0];
 
   document.getElementById("leaderboard").innerHTML = rows.map((r, i) => {
-    const isLeader = r.alive.length === maxAlive && maxAlive > 0;
+    const isLeader = hasOdds
+      ? r.champPct === leader.champPct && r.champPct > 0
+      : r.alive.length === leader.alive.length && r.alive.length > 0;
+
     const teamRows = [
-      ...r.alive.map(t => `<div class="lb-team">${FLAGS[t] || ""} ${t}</div>`),
-      ...r.out.map(t   => `<div class="lb-team out">${FLAGS[t] || ""} ${t}</div>`),
+      ...r.alive.map(t => {
+        const pct = teamOutrightPct(t);
+        const pctTag = pct !== null ? `<span class="lb-champ-pct">${pct}%</span>` : "";
+        return `<div class="lb-team">${FLAGS[t] || ""} ${t}${pctTag}</div>`;
+      }),
+      ...r.out.map(t => `<div class="lb-team out">${FLAGS[t] || ""} ${t}</div>`),
     ].join("");
 
+    const champBadge = r.champPct !== null
+      ? `<span class="lb-champ-badge">🏆 ${r.champPct.toFixed(1)}%</span>` : "";
+
     return `<div class="lb-card${isLeader ? " leader" : ""}">
-      <div class="lb-name">${i + 1}. ${r.name} <span class="lb-rank"></span></div>
+      <div class="lb-name">${i + 1}. ${r.name} ${champBadge}</div>
       <div class="lb-counts"><b>${r.alive.length}</b> alive · ${r.out.length} out</div>
       <div class="lb-teams">${teamRows}</div>
     </div>`;
@@ -736,16 +805,20 @@ function openMatchModal(matchNum) {
 
   setTimeout(() => card.classList.add("flipped"), 320);
 
+  const noDataMsg = '<div class="modal-empty">No stats or betting odds available yet</div>';
+
   if (m.eventId) {
     fetchSummary(m.eventId).then(data => {
       back.innerHTML = buildModalBack(data, m);
     }).catch(() => {
-      back.innerHTML = '<div class="modal-empty">Stats not yet available</div>';
+      back.innerHTML = noDataMsg;
     });
   } else if (m.status === "upcoming") {
-    back.innerHTML = '<div class="modal-empty">Stats available after kickoff</div>';
+    // Show betting lines if we have them, otherwise generic message
+    const bettingHtml = buildModalBack({}, m);
+    back.innerHTML = bettingHtml.includes("modal-empty") ? noDataMsg : bettingHtml;
   } else {
-    back.innerHTML = '<div class="modal-empty">No data available</div>';
+    back.innerHTML = noDataMsg;
   }
 }
 
@@ -787,6 +860,17 @@ function buildModalFront(m) {
   else if (m.timeET)             meta = `${formatDate(m.date)} · ${etToPT(m.timeET)}`;
   if (m.venue) meta += (meta ? " · " : "") + m.venue;
 
+  let oddsHTML = "";
+  if (m.odds && m.status === "upcoming") {
+    const pcts = impliedPcts(m.odds);
+    oddsHTML = `
+    <div class="modal-odds">
+      <div class="o-team"><div style="font-size:0.58rem;color:var(--text-faint);margin-bottom:2px">${tA}</div>${pcts.pctA !== null ? pcts.pctA + "%" : "–"}</div>
+      <div class="o-draw"><div style="font-size:0.58rem;margin-bottom:2px">Draw</div>${pcts.pctDraw !== null ? pcts.pctDraw + "%" : "–"}</div>
+      <div class="o-team"><div style="font-size:0.58rem;color:var(--text-faint);margin-bottom:2px">${tB}</div>${pcts.pctB !== null ? pcts.pctB + "%" : "–"}</div>
+    </div>`;
+  }
+
   return `
     <button class="modal-close" onclick="closeMatchModal()">✕</button>
     <div class="modal-teams">
@@ -799,7 +883,8 @@ function buildModalFront(m) {
         ${scoreBlockB}
       </div>
     </div>
-    ${meta ? `<div class="modal-meta">${meta}</div>` : ""}`;
+    ${meta ? `<div class="modal-meta">${meta}</div>` : ""}
+    ${oddsHTML}`;
 }
 
 function buildModalBack(data, m) {
@@ -873,14 +958,145 @@ function buildModalBack(data, m) {
     if (pkB.length) html += renderPKs(pkB, statsTeams[1]?.team?.displayName || m.teamB || "");
   }
 
-  return html || '<div class="modal-empty">No stats available yet</div>';
+  // Over/Under + BTTS (upcoming matches only)
+  if (m.status === "upcoming" && (m.oddsLine || m.oddsBtts)) {
+    html += `<div class="modal-section-title">📈 Betting Lines</div><div class="modal-stats-grid">`;
+    if (m.oddsLine) {
+      html += `
+        <div class="stat-val-a">${m.oddsLine.overPct}%</div>
+        <div class="stat-label">Over ${m.oddsLine.line} Goals</div>
+        <div class="stat-val-b">${m.oddsLine.underPct}%</div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-a" style="width:${m.oddsLine.overPct}%"></div>
+          <div class="stat-bar-b" style="width:${m.oddsLine.underPct}%"></div>
+        </div>`;
+    }
+    if (m.oddsBtts) {
+      html += `
+        <div class="stat-val-a">${m.oddsBtts.yesPct}%</div>
+        <div class="stat-label">Both Teams Score</div>
+        <div class="stat-val-b">${m.oddsBtts.noPct}%</div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-a" style="width:${m.oddsBtts.yesPct}%"></div>
+          <div class="stat-bar-b" style="width:${m.oddsBtts.noPct}%"></div>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  return html || '<div class="modal-empty">No stats or betting odds available yet</div>';
 }
 
 /* ── MAIN LOOP ───────────────────────────────────────────────────────────── */
+/* ── THE ODDS API ────────────────────────────────────────────────────────── */
+const ODDS_KEY = "8d41750fb07932bd3b95c0b32fa2bd1c";
+
+async function fetchOdds() {
+  const r = await fetch(
+    `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_KEY}&regions=us&markets=h2h,totals,btts&oddsFormat=american`
+  );
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function fetchOutrights() {
+  const r = await fetch(
+    `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/outrights/?apiKey=${ODDS_KEY}&regions=us&oddsFormat=american`
+  );
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
+}
+
+function rawImplied(price) {
+  if (price == null) return 0;
+  return price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100);
+}
+
+function processOdds(oddsData) {
+  for (const ev of oddsData) {
+    const nA = norm(espnName(ev.home_team || ""));
+    const nB = norm(espnName(ev.away_team || ""));
+
+    let slot = null;
+    for (const [num, m] of Object.entries(state.matches)) {
+      const mA = norm(m.teamA || ""), mB = norm(m.teamB || "");
+      if ((mA === nA && mB === nB) || (mA === nB && mB === nA)) { slot = +num; break; }
+    }
+    if (!slot) continue;
+
+    const m = state.matches[slot];
+    for (const bookie of (ev.bookmakers || [])) {
+      const h2h    = bookie.markets?.find(mk => mk.key === "h2h");
+      const totals = bookie.markets?.find(mk => mk.key === "totals");
+      const btts   = bookie.markets?.find(mk => mk.key === "btts");
+
+      if (h2h && !m.odds) {
+        const oc = h2h.outcomes || [];
+        const findPrice = name => oc.find(o => norm(o.name) === norm(name))?.price ?? null;
+        const priceA = findPrice(m.teamA), priceB = findPrice(m.teamB);
+        const priceDraw = oc.find(o => o.name === "Draw")?.price ?? null;
+        if (priceA !== null || priceB !== null)
+          m.odds = { priceA, priceDraw, priceB };
+      }
+
+      if (totals && !m.oddsLine) {
+        const ov = totals.outcomes?.find(o => o.name === "Over");
+        const un = totals.outcomes?.find(o => o.name === "Under");
+        if (ov) {
+          const line = ov.point ?? 2.5;
+          const rOv = rawImplied(ov.price), rUn = rawImplied(un?.price);
+          const sum  = rOv + rUn || 1;
+          m.oddsLine = { line, overPct: Math.round(rOv / sum * 100), underPct: Math.round(rUn / sum * 100) };
+        }
+      }
+
+      if (btts && !m.oddsBtts) {
+        const yes = btts.outcomes?.find(o => o.name === "Yes");
+        const no  = btts.outcomes?.find(o => o.name === "No");
+        if (yes) {
+          const rY = rawImplied(yes.price), rN = rawImplied(no?.price);
+          const sum = rY + rN || 1;
+          m.oddsBtts = { yesPct: Math.round(rY / sum * 100), noPct: Math.round(rN / sum * 100) };
+        }
+      }
+    }
+  }
+}
+
+function processOutrights(data) {
+  state.outrights = {};
+  const all = [];
+  for (const ev of data) {
+    const bookie = ev.bookmakers?.[0];
+    const market = bookie?.markets?.find(mk => mk.key === "outrights");
+    if (!market) continue;
+    for (const o of (market.outcomes || [])) {
+      all.push({ name: o.name, raw: rawImplied(o.price) });
+    }
+    break; // one event is the tournament
+  }
+  if (!all.length) return;
+  const total = all.reduce((s, o) => s + o.raw, 0) || 1;
+  for (const { name, raw } of all) {
+    state.outrights[norm(name)] = +(raw / total * 100).toFixed(1);
+  }
+}
+
+function teamOutrightPct(teamName) {
+  if (!state.outrights || !teamName) return null;
+  return state.outrights[norm(teamName)] ?? null;
+}
+
 async function refresh() {
   try {
-    const events = await fetchESPN();
+    const [events, oddsData, outrightData] = await Promise.all([
+      fetchESPN(),
+      fetchOdds().catch(() => []),
+      fetchOutrights().catch(() => []),
+    ]);
     processEvents(events);
+    processOdds(oddsData);
+    processOutrights(outrightData);
     render();
     renderLeaderboard();
   } catch (e) {}
