@@ -991,9 +991,9 @@ function buildModalBack(data, m) {
 /* ── THE ODDS API ────────────────────────────────────────────────────────── */
 const ODDS_KEY = "8d41750fb07932bd3b95c0b32fa2bd1c";
 
-async function fetchOdds() {
+async function fetchOddsMarket(markets) {
   const r = await fetch(
-    `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_KEY}&regions=us&markets=h2h,totals,btts&oddsFormat=american`
+    `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_KEY}&regions=us&markets=${markets}&oddsFormat=american`
   );
   const data = await r.json();
   return Array.isArray(data) ? data : [];
@@ -1087,15 +1087,27 @@ function teamOutrightPct(teamName) {
   return state.outrights[norm(teamName)] ?? null;
 }
 
+async function mergeOddsData(a, b) {
+  // Merge two odds arrays by event id so bookmakers from both calls combine
+  const map = {};
+  for (const ev of a) map[ev.id] = { ...ev, bookmakers: [...(ev.bookmakers || [])] };
+  for (const ev of b) {
+    if (map[ev.id]) map[ev.id].bookmakers.push(...(ev.bookmakers || []));
+    else map[ev.id] = ev;
+  }
+  return Object.values(map);
+}
+
 async function refresh() {
   try {
-    const [events, oddsData, outrightData] = await Promise.all([
+    const [events, h2hData, extraData, outrightData] = await Promise.all([
       fetchESPN(),
-      fetchOdds().catch(() => []),
+      fetchOddsMarket("h2h").catch(() => []),
+      fetchOddsMarket("totals,btts").catch(() => []),
       fetchOutrights().catch(() => []),
     ]);
     processEvents(events);
-    processOdds(oddsData);
+    processOdds(await mergeOddsData(h2hData, extraData));
     processOutrights(outrightData);
     render();
     renderLeaderboard();
