@@ -82,6 +82,7 @@
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
       box-shadow: 0 2px 12px rgba(0,0,0,0.07);
       transition: border-color 0.35s, box-shadow 0.35s, background 0.35s;
+      cursor: pointer;
     }
     .match:hover {
       background: var(--glass-hover);
@@ -205,94 +206,118 @@
     .lb-team.out { color: var(--text-faint); text-decoration: line-through; opacity: 0.6; }
     .lb-rank { font-size: 0.65rem; color: var(--text-faint); float: right; }
 
-    /* ── Loading overlay ─────────────────────────────────────────── */
-    #loading-overlay {
-      position: fixed; inset: 0; z-index: 999;
-      background: linear-gradient(155deg, #faf8f3 0%, #f5f0e8 50%, #faf7f0 100%);
-      overflow: hidden; transition: opacity 0.55s ease;
+    /* ── Match detail modal ──────────────────────────────────────── */
+    #match-modal {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      align-items: center; justify-content: center;
     }
-    #loading-overlay.hidden { opacity: 0; pointer-events: none; }
-
-    .pass-player {
-      position: absolute; bottom: 30%; font-size: 72px; line-height: 1;
-      transform-origin: bottom center; user-select: none;
+    #match-modal.open { display: flex; }
+    .modal-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(40,28,10,0.45);
+      backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
     }
-    #p-left  { left: 8%;  animation: kick-left  5.5s linear forwards; }
-    #p-right { right: 8%; animation: kick-right 5.5s linear forwards; }
-
-    #pass-ball {
-      position: absolute; font-size: 52px; line-height: 1;
-      transform-origin: center center;
-      animation:
-        pass-h         5.5s linear  forwards,
-        pass-v         5.5s ease    forwards,
-        pass-transform 5.5s ease-in forwards;
+    .modal-scene { position: relative; perspective: 1000px; }
+    .modal-card {
+      width: 340px; min-height: 260px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.55s ease;
     }
-
-    @keyframes pass-h {
-      0%   { left: 14%; }
-      27%  { left: 82%; }
-      36%  { left: 82%; }
-      64%  { left: 14%; }
-      73%  { left: 14%; }
-      87%  { left: calc(50% - 28px); }
-      100% { left: calc(50% - 28px); }
+    .modal-card.flipped { transform: rotateY(180deg); }
+    .modal-front, .modal-back {
+      width: 100%; min-height: 260px;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      border-radius: 14px;
+      background: var(--glass);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border-mid);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+      padding: 18px 16px 14px;
     }
-    @keyframes pass-v {
-      0%   { bottom: 30%; }
-      13%  { bottom: calc(30% + 210px); }
-      27%  { bottom: 30%; }
-      36%  { bottom: 30%; }
-      50%  { bottom: calc(30% + 210px); }
-      64%  { bottom: 30%; }
-      73%  { bottom: 30%; }
-      87%  { bottom: calc(50% - 28px); }
-      100% { bottom: calc(50% - 28px); }
+    .modal-back {
+      position: absolute; inset: 0;
+      transform: rotateY(180deg);
+      overflow-y: auto;
     }
-    @keyframes pass-transform {
-      0%   { transform: rotate(0deg)   scale(1);  }
-      73%  { transform: rotate(540deg) scale(1);  }
-      87%  { transform: rotate(620deg) scale(1);  }
-      97%  { transform: rotate(680deg) scale(32); }
-      100% { transform: rotate(700deg) scale(40); }
+    .modal-close {
+      position: absolute; top: 10px; right: 12px;
+      background: none; border: none; cursor: pointer;
+      font-size: 1rem; color: var(--text-faint); line-height: 1;
+      padding: 2px 4px; border-radius: 4px;
     }
-
-    #explosion {
-      position: absolute; inset: 0; background: #fff;
-      opacity: 0; pointer-events: none;
-      animation: explode 5.5s ease forwards;
+    .modal-close:hover { color: var(--text); background: rgba(0,0,0,0.06); }
+    .modal-teams {
+      display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;
     }
-    @keyframes explode {
-      0%   { opacity: 0; }
-      88%  { opacity: 0; }
-      95%  { opacity: 1; }
-      100% { opacity: 1; }
+    .modal-team-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.85rem; font-weight: 600; color: var(--text);
     }
-    @keyframes kick-left {
-      0%   { transform: scale(1.0); }
-      3%   { transform: scale(1.3); }
-      8%   { transform: scale(1.0); }
-      73%  { transform: scale(1.0); }
-      77%  { transform: scale(1.7); }
-      83%  { transform: scale(1.0); }
-      100% { transform: scale(1.0); }
+    .modal-team-row .score {
+      font-size: 1.2rem; font-weight: 800; color: var(--text); min-width: 22px; text-align: center;
     }
-    @keyframes kick-right {
-      0%   { transform: scaleX(-1) scale(1.0); }
-      36%  { transform: scaleX(-1) scale(1.0); }
-      39%  { transform: scaleX(-1) scale(1.3); }
-      44%  { transform: scaleX(-1) scale(1.0); }
-      100% { transform: scaleX(-1) scale(1.0); }
+    .modal-team-row.winner { color: var(--green); }
+    .modal-team-row .owner-tag {
+      font-size: 0.62rem; font-weight: 400; color: var(--text-faint); margin-left: 6px;
     }
+    .modal-meta {
+      font-size: 0.62rem; color: var(--text-faint); text-align: center;
+      border-top: 1px solid var(--border); padding-top: 8px; letter-spacing: 0.3px;
+    }
+    .modal-section-title {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 1px;
+      color: var(--text-sub); text-transform: uppercase;
+      margin: 12px 0 6px;
+    }
+    .modal-scorers { display: flex; flex-direction: column; gap: 4px; }
+    .modal-scorer-row {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.74rem; color: var(--text);
+    }
+    .modal-scorer-row .minute {
+      font-size: 0.62rem; color: var(--text-faint); min-width: 28px;
+    }
+    .modal-scorer-row .goal-type {
+      font-size: 0.62rem; color: var(--text-faint); margin-left: 2px;
+    }
+    .modal-stats-grid {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      gap: 5px 8px; align-items: center;
+    }
+    .stat-val-a { text-align: right; font-size: 0.78rem; font-weight: 600; color: var(--text); }
+    .stat-label { text-align: center; font-size: 0.58rem; color: var(--text-faint); letter-spacing: 0.3px; }
+    .stat-val-b { text-align: left; font-size: 0.78rem; font-weight: 600; color: var(--text); }
+    .stat-bar-row {
+      grid-column: 1 / -1;
+      display: flex; height: 3px; border-radius: 2px; overflow: hidden;
+      margin-bottom: 2px;
+    }
+    .stat-bar-a { background: var(--gold); }
+    .stat-bar-b { background: var(--border-mid); }
+    .modal-pks { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+    .pk-shot {
+      font-size: 0.68rem; padding: 2px 6px; border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .pk-shot.scored { color: var(--green); border-color: var(--green); }
+    .pk-shot.missed { color: var(--red); border-color: var(--red); opacity: 0.7; }
+    .modal-empty { font-size: 0.72rem; color: var(--text-faint); text-align: center; padding: 20px 0; }
   </style>
 </head>
 <body>
 
-<div id="loading-overlay">
-  <div id="explosion"></div>
-  <div class="pass-player" id="p-left">🧑</div>
-  <div id="pass-ball">⚽</div>
-  <div class="pass-player" id="p-right">🧑</div>
+<div id="match-modal">
+  <div class="modal-backdrop" onclick="closeMatchModal()"></div>
+  <div class="modal-scene">
+    <div class="modal-card" id="modal-card">
+      <div class="modal-front" id="modal-front"></div>
+      <div class="modal-back" id="modal-back">
+        <button class="modal-close" onclick="closeMatchModal()">✕</button>
+        <div id="modal-back-content"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <header>
@@ -514,6 +539,7 @@ function processEvents(events) {
     if (slotA && !slotB) { m.teamB = tB; lookup[norm(tB)] = slotNum; }
     if (slotB && !slotA) { m.teamA = tA; lookup[norm(tA)] = slotNum; }
 
+    m.eventId = ev.id || null;
     m.scoreA = sA;
     m.scoreB = sB;
     m.status = espnStatus === "STATUS_FULL_TIME"    ? "final"
@@ -593,7 +619,7 @@ function matchCardHTML(matchNum) {
   else if (m.status === "final") footer = `FINAL · ${formatDate(m.date)}`;
   else if (m.timeET)             footer = `${formatDate(m.date)} · ${etToPT(m.timeET)}`;
 
-  return `<div class="match${hasWinner ? " has-winner" : ""}">
+  return `<div class="match${hasWinner ? " has-winner" : ""}" onclick="openMatchModal(${matchNum})" title="Click for match details">
     ${teamRowHTML("teamA", m)}
     ${teamRowHTML("teamB", m)}
     ${footer ? `<div class="match-footer ${footerCls}">${footer}</div>` : ""}
@@ -691,16 +717,164 @@ function renderLeaderboard() {
 }
 
 /* ── LOADING OVERLAY ─────────────────────────────────────────────────────── */
-function dismissOverlay() {
-  const el = document.getElementById("loading-overlay");
-  if (!el || el.dataset.gone) return;
-  el.dataset.gone = "1";
-  el.classList.add("hidden");
-  setTimeout(() => el.remove(), 600);
+/* ── MATCH DETAIL MODAL ──────────────────────────────────────────────────── */
+const summaryCache = {};
+
+function openMatchModal(matchNum) {
+  const m = state.matches[matchNum];
+  if (!m) return;
+
+  const modal = document.getElementById("match-modal");
+  const card  = document.getElementById("modal-card");
+  const front = document.getElementById("modal-front");
+  const back  = document.getElementById("modal-back-content");
+
+  card.classList.remove("flipped");
+  front.innerHTML = buildModalFront(m);
+  back.innerHTML  = '<div class="modal-empty">Loading…</div>';
+  modal.classList.add("open");
+
+  setTimeout(() => card.classList.add("flipped"), 320);
+
+  if (m.eventId) {
+    fetchSummary(m.eventId).then(data => {
+      back.innerHTML = buildModalBack(data, m);
+    }).catch(() => {
+      back.innerHTML = '<div class="modal-empty">Stats not yet available</div>';
+    });
+  } else if (m.status === "upcoming") {
+    back.innerHTML = '<div class="modal-empty">Stats available after kickoff</div>';
+  } else {
+    back.innerHTML = '<div class="modal-empty">No data available</div>';
+  }
 }
 
-// Auto-dismiss after ball exits (~2.6s)
-setTimeout(dismissOverlay, 5600);
+function closeMatchModal() {
+  const modal = document.getElementById("match-modal");
+  const card  = document.getElementById("modal-card");
+  card.classList.remove("flipped");
+  setTimeout(() => modal.classList.remove("open"), 600);
+}
+
+async function fetchSummary(eventId) {
+  if (summaryCache[eventId]) return summaryCache[eventId];
+  const r = await fetch(
+    `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`
+  );
+  const data = await r.json();
+  summaryCache[eventId] = data;
+  return data;
+}
+
+function buildModalFront(m) {
+  const winA = m.winner === "A";
+  const winB = m.winner === "B";
+  const tA   = m.teamA || "TBD";
+  const tB   = m.teamB || "TBD";
+  const owA  = OWNERSHIP[tA] || "";
+  const owB  = OWNERSHIP[tB] || "";
+
+  const scoreBlock = m.scoreA != null
+    ? `<span class="score">${m.scoreA}</span>`
+    : `<span class="score" style="opacity:0.2">–</span>`;
+  const scoreBlockB = m.scoreB != null
+    ? `<span class="score">${m.scoreB}</span>`
+    : `<span class="score" style="opacity:0.2">–</span>`;
+
+  let meta = "";
+  if (m.status === "live")       meta = "🔴 LIVE";
+  else if (m.status === "final") meta = `FINAL · ${formatDate(m.date)}`;
+  else if (m.timeET)             meta = `${formatDate(m.date)} · ${etToPT(m.timeET)}`;
+  if (m.venue) meta += (meta ? " · " : "") + m.venue;
+
+  return `
+    <button class="modal-close" onclick="closeMatchModal()">✕</button>
+    <div class="modal-teams">
+      <div class="modal-team-row${winA ? " winner" : ""}">
+        <span>${tA}${owA ? `<span class="owner-tag">${owA}</span>` : ""}</span>
+        ${scoreBlock}
+      </div>
+      <div class="modal-team-row${winB ? " winner" : ""}">
+        <span>${tB}${owB ? `<span class="owner-tag">${owB}</span>` : ""}</span>
+        ${scoreBlockB}
+      </div>
+    </div>
+    ${meta ? `<div class="modal-meta">${meta}</div>` : ""}`;
+}
+
+function buildModalBack(data, m) {
+  let html = "";
+
+  // Goal scorers
+  const plays = (data.scoringPlays || []).filter(p => !p.shootoutScore);
+  if (plays.length) {
+    html += `<div class="modal-section-title">⚽ Scorers</div><div class="modal-scorers">`;
+    for (const p of plays) {
+      const name    = p.athletesInvolved?.[0]?.shortName || p.athletesInvolved?.[0]?.displayName || "Unknown";
+      const min     = p.clock?.displayValue || "";
+      const typeRaw = (p.type?.text || p.scoringType?.displayName || "").toLowerCase();
+      const tag     = typeRaw.includes("penalty") ? " (pen)" : typeRaw.includes("own") ? " (og)" : "";
+      const teamAbv = p.team?.abbreviation || "";
+      html += `<div class="modal-scorer-row"><span class="minute">${min}</span><span>${teamAbv} – ${name}${tag}</span></div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Stats
+  const statsTeams = data.statistics?.[0]?.teams || data.statistics?.teams || [];
+  const STAT_KEYS = [
+    {name:"possessionPct",  label:"Possession"},
+    {name:"shotsOnTarget",  label:"Shots on Target"},
+    {name:"shots",          label:"Total Shots"},
+    {name:"cornerKicks",    label:"Corners"},
+    {name:"fouls",          label:"Fouls"},
+    {name:"yellowCards",    label:"Yellow Cards"},
+    {name:"redCards",       label:"Red Cards"},
+  ];
+  if (statsTeams.length >= 2) {
+    const getVal = (teamIdx, key) => {
+      const stats = statsTeams[teamIdx]?.statistics || [];
+      return stats.find(s => s.name === key)?.displayValue ?? "–";
+    };
+    html += `<div class="modal-section-title">📊 Match Stats</div><div class="modal-stats-grid">`;
+    for (const {name, label} of STAT_KEYS) {
+      const vA = getVal(0, name);
+      const vB = getVal(1, name);
+      const numA = parseFloat(vA) || 0;
+      const numB = parseFloat(vB) || 0;
+      const tot  = numA + numB || 1;
+      const pctA = Math.round((numA / tot) * 100);
+      html += `
+        <div class="stat-val-a">${vA}</div>
+        <div class="stat-label">${label}</div>
+        <div class="stat-val-b">${vB}</div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-a" style="width:${pctA}%"></div>
+          <div class="stat-bar-b" style="width:${100 - pctA}%"></div>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Penalty shootout
+  const pkPlays = (data.scoringPlays || []).filter(p => p.shootoutScore);
+  if (pkPlays.length) {
+    html += `<div class="modal-section-title">🥅 Penalty Shootout</div>`;
+    const pkA = pkPlays.filter(p => p.team?.id === statsTeams[0]?.team?.id);
+    const pkB = pkPlays.filter(p => p.team?.id === statsTeams[1]?.team?.id);
+    const renderPKs = (shots, teamName) => {
+      const dots = shots.map(s => {
+        const scored = s.scoringPlay !== false && s.type?.text !== "Missed";
+        return `<span class="pk-shot ${scored ? "scored" : "missed"}">${scored ? "✓" : "✗"}</span>`;
+      }).join("");
+      return `<div style="font-size:0.68rem;color:var(--text-sub);margin-bottom:3px">${teamName}</div><div class="modal-pks">${dots}</div>`;
+    };
+    if (pkA.length) html += renderPKs(pkA, statsTeams[0]?.team?.displayName || m.teamA || "");
+    if (pkB.length) html += renderPKs(pkB, statsTeams[1]?.team?.displayName || m.teamB || "");
+  }
+
+  return html || '<div class="modal-empty">No stats available yet</div>';
+}
 
 /* ── MAIN LOOP ───────────────────────────────────────────────────────────── */
 async function refresh() {
