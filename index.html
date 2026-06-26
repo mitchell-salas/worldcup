@@ -9,20 +9,20 @@
 
     /* ── Design tokens ───────────────────────────────────────────── */
     :root {
-      --bg:          linear-gradient(155deg, #f0fdf4 0%, #dcfce7 50%, #ecfdf5 100%);
-      --glass:       rgba(255,255,255,0.7);
+      --bg:          linear-gradient(155deg, #faf8f3 0%, #f5f0e8 50%, #faf7f0 100%);
+      --glass:       rgba(255,255,255,0.72);
       --glass-hover: rgba(255,255,255,0.88);
-      --border:      rgba(34,197,94,0.18);
-      --border-mid:  rgba(34,197,94,0.32);
-      --text:        #14532d;
-      --text-sub:    #4b7a5e;
-      --text-faint:  #86b89a;
+      --border:      rgba(180,150,100,0.18);
+      --border-mid:  rgba(180,150,100,0.32);
+      --text:        #3d2f1a;
+      --text-sub:    #7a6145;
+      --text-faint:  #b09a7a;
       --green:       #16a34a;
       --green-glow:  rgba(22,163,74,0.12);
       --gold:        #ca8a04;
       --gold-glow:   rgba(202,138,4,0.15);
       --red:         #dc2626;
-      --connector:   rgba(34,197,94,0.25);
+      --connector:   rgba(180,150,100,0.25);
     }
 
     body {
@@ -157,6 +157,10 @@
       border-left: 1px solid var(--connector);
       border-bottom: 1px solid var(--connector);
     }
+    /* Trophy above Final */
+    .slot.final-slot { flex-direction: column; gap: 10px; }
+    .trophy-icon { font-size: 2.2rem; line-height: 1; text-align: center; }
+
     .straight-conn { position: relative; width: 14px; }
     .straight-conn::before {
       content: ''; position: absolute; top: 50%; left: 0;
@@ -198,7 +202,7 @@
     /* ── Loading overlay ─────────────────────────────────────────── */
     #loading-overlay {
       position: fixed; inset: 0; z-index: 999;
-      background: linear-gradient(155deg, #f0fdf4 0%, #dcfce7 50%, #ecfdf5 100%);
+      background: linear-gradient(155deg, #faf8f3 0%, #f5f0e8 50%, #faf7f0 100%);
       overflow: hidden; transition: opacity 0.55s ease;
     }
     #loading-overlay.hidden { opacity: 0; pointer-events: none; }
@@ -598,8 +602,9 @@ function buildConnectorStraight() {
 }
 
 function buildCol(label, matchNums, slotPx, cls = "") {
+  const isFinal = cls === "final-col";
   const slots = matchNums
-    .map(n => `<div class="slot" style="height:${slotPx}px">${matchCardHTML(n)}</div>`)
+    .map(n => `<div class="slot${isFinal ? " final-slot" : ""}" style="height:${slotPx}px">${isFinal ? '<div class="trophy-icon">🏆</div>' : ""}${matchCardHTML(n)}</div>`)
     .join("");
   return `<div class="round-col ${cls}">
     <div class="round-label">${label}</div>${slots}</div>`;
