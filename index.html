@@ -237,6 +237,7 @@
     #match-modal {
       display: none; position: fixed; inset: 0; z-index: 500;
       align-items: center; justify-content: center;
+      padding: 16px;
       transition: opacity 0.28s ease;
     }
     #match-modal.open { display: flex; }
@@ -245,9 +246,15 @@
       background: rgba(40,28,10,0.45);
       backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
     }
-    .modal-scene { position: relative; perspective: 1000px; }
+    .modal-scene {
+      position: relative; perspective: 1000px;
+      width: 100%; max-width: 340px;
+      max-height: calc(100svh - 32px);
+      max-height: calc(100dvh - 32px);
+    }
     .modal-card {
-      width: 340px; min-height: 260px;
+      width: 100%;
+      min-height: 260px;
       position: relative;
       transform-style: preserve-3d;
       transition: transform 0.55s ease;
@@ -267,6 +274,15 @@
       position: absolute; inset: 0;
       transform: rotateY(180deg);
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      max-height: calc(100svh - 32px);
+      max-height: calc(100dvh - 32px);
+    }
+    @media (max-width: 480px) {
+      #match-modal { align-items: flex-start; padding-top: max(env(safe-area-inset-top, 12px), 12px); }
+      .bet-select, .bet-amount { font-size: 16px; padding: 8px 10px; }
+      .bet-form-row { flex-wrap: wrap; gap: 6px; }
+      .bet-submit { width: 100%; padding: 10px; font-size: 0.82rem; }
     }
     .modal-close {
       position: absolute; top: 10px; right: 12px;
