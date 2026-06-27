@@ -764,19 +764,33 @@ function render() {
 
 /* ── LEADERBOARD ─────────────────────────────────────────────────────────── */
 function computeLeaderboard() {
-  const eliminated = new Set();
+  // Teams that lost a knockout match
+  const knocked = new Set();
+  // Teams confirmed in the bracket (appeared in at least one slot via ESPN)
+  const inBracket = new Set();
+
   for (const m of Object.values(state.matches)) {
-    if (m.status !== "final" || !m.winner) continue;
-    const loser = m.winner === "A" ? m.teamB : m.teamA;
-    if (loser) eliminated.add(loser);
+    if (m.teamA) inBracket.add(m.teamA);
+    if (m.teamB) inBracket.add(m.teamB);
+    if (m.status === "final" && m.winner) {
+      const loser = m.winner === "A" ? m.teamB : m.teamA;
+      if (loser) knocked.add(loser);
+    }
   }
+
+  // Only apply "not in bracket" elimination if ESPN has loaded data for multiple teams
+  const espnLoaded = inBracket.size >= 4;
 
   const hasOutrights = state.outrights && Object.keys(state.outrights).length > 0;
 
   return OWNERS
     .map(o => {
-      const alive = o.teams.filter(t => !eliminated.has(t));
-      const out   = o.teams.filter(t =>  eliminated.has(t));
+      const alive = o.teams.filter(t => {
+        if (knocked.has(t)) return false;
+        if (espnLoaded && !inBracket.has(t)) return false; // didn't make knockout stage
+        return true;
+      });
+      const out = o.teams.filter(t => !alive.includes(t));
       const champPct = hasOutrights
         ? alive.reduce((s, t) => s + (teamOutrightPct(t) || 0), 0)
         : null;
@@ -1033,11 +1047,14 @@ async function fetchOddsMarket(markets) {
 }
 
 async function fetchOutrights() {
-  const r = await fetch(
-    `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/outrights/?apiKey=${ODDS_KEY}&regions=us&oddsFormat=american`
-  );
-  const data = await r.json();
-  return Array.isArray(data) ? data : [];
+  // Try both the dedicated outrights endpoint and the regular odds endpoint with outrights market
+  const [a, b] = await Promise.all([
+    fetch(`https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/outrights/?apiKey=${ODDS_KEY}&regions=us&oddsFormat=american`)
+      .then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
+    fetch(`https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_KEY}&regions=us&markets=outrights&oddsFormat=american`)
+      .then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
+  ]);
+  return [...a, ...b];
 }
 
 function rawImplied(price) {
