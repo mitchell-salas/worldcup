@@ -873,22 +873,27 @@ function render() {
 
 /* ── LEADERBOARD ─────────────────────────────────────────────────────────── */
 function computeLeaderboard() {
-  // Teams that lost a knockout match
   const knocked = new Set();
-  // Teams confirmed in the bracket (appeared in at least one slot via ESPN)
-  const inBracket = new Set();
+
+  // Build the set of teams confirmed in R32 slots specifically
+  const allR32Nums = [...BRACKET.left_r32, ...BRACKET.right_r32];
+  const r32Teams = new Set();
+  for (const n of allR32Nums) {
+    const m = state.matches[n];
+    if (m?.teamA) r32Teams.add(m.teamA);
+    if (m?.teamB) r32Teams.add(m.teamB);
+  }
 
   for (const m of Object.values(state.matches)) {
-    if (m.teamA) inBracket.add(m.teamA);
-    if (m.teamB) inBracket.add(m.teamB);
     if (m.status === "final" && m.winner) {
       const loser = m.winner === "A" ? m.teamB : m.teamA;
       if (loser) knocked.add(loser);
     }
   }
 
-  // Only apply "not in bracket" elimination if ESPN has loaded data for multiple teams
-  const espnLoaded = inBracket.size >= 4;
+  // Only filter group-stage exits once at least 14 of 16 R32 matches have both teams confirmed
+  const filledR32Count = allR32Nums.filter(n => state.matches[n]?.teamA && state.matches[n]?.teamB).length;
+  const r32Complete = filledR32Count >= 14;
 
   const hasOutrights = state.outrights && Object.keys(state.outrights).length > 0;
 
@@ -896,7 +901,7 @@ function computeLeaderboard() {
     .map(o => {
       const alive = o.teams.filter(t => {
         if (knocked.has(t)) return false;
-        if (espnLoaded && !inBracket.has(t)) return false; // didn't make knockout stage
+        if (r32Complete && !r32Teams.has(t)) return false; // didn't make R32
         return true;
       });
       const out = o.teams.filter(t => !alive.includes(t));
@@ -1297,10 +1302,48 @@ async function mergeOddsData(a, b) {
   return Object.values(map);
 }
 
+/* ── ODDS CACHE (localStorage) ───────────────────────────────────────────── */
+const ODDS_CACHE_KEY = "wc2026_odds_v1";
+const ODDS_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
+
+function readOddsCache() {
+  try {
+    const raw = localStorage.getItem(ODDS_CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (Date.now() - entry.ts > ODDS_CACHE_TTL) return null;
+    return entry;
+  } catch { return null; }
+}
+
+function writeOddsCache(h2h, totals, outrights) {
+  try {
+    localStorage.setItem(ODDS_CACHE_KEY, JSON.stringify({ ts: Date.now(), h2h, totals, outrights }));
+  } catch {}
+}
+
+function clearOddsCache() {
+  try { localStorage.removeItem(ODDS_CACHE_KEY); } catch {}
+}
+
 let oddsLoaded = false;
 
 async function loadOdds() {
   if (oddsLoaded) return;
+
+  // Try localStorage cache first — avoids API calls on every page load/refresh
+  const cached = readOddsCache();
+  if (cached) {
+    const merged = await mergeOddsData(cached.h2h || [], cached.totals || []);
+    processOdds(merged);
+    processOutrights(cached.outrights || []);
+    if (Object.values(state.matches).some(m => m.odds || m.oddsLine)) {
+      oddsLoaded = true;
+      return;
+    }
+  }
+
+  // Cache miss or empty — fetch from API and save
   try {
     const [h2hData, extraData, outrightData] = await Promise.all([
       fetchOddsMarket("h2h").catch(() => []),
@@ -1309,7 +1352,10 @@ async function loadOdds() {
     ]);
     processOdds(await mergeOddsData(h2hData, extraData));
     processOutrights(outrightData);
-    if (Object.values(state.matches).some(m => m.odds)) oddsLoaded = true;
+    if (Object.values(state.matches).some(m => m.odds || m.oddsLine)) {
+      oddsLoaded = true;
+      writeOddsCache(h2hData, extraData, outrightData);
+    }
   } catch (e) {}
 }
 
@@ -1323,8 +1369,12 @@ async function refresh() {
   } catch (e) {}
 }
 
-// Reload odds once per hour in case lines shift
-setInterval(() => { oddsLoaded = false; loadOdds().then(() => { render(); renderLeaderboard(); }); }, 60 * 60 * 1000);
+// Reload odds once per hour — clear cache so fresh lines are fetched
+setInterval(() => {
+  oddsLoaded = false;
+  clearOddsCache();
+  loadOdds().then(() => { render(); renderLeaderboard(); });
+}, 60 * 60 * 1000);
 
 initState();
 render();
