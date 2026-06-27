@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NCYSD World Cup 2026</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <meta property="og:title"       content="NCYSD World Cup 2026">
   <meta property="og:description" content="Friend group bracket pool — track your teams through the knockout rounds.">
   <meta property="og:image"       content="https://ncysdworldcup2026.netlify.app/og-image.png">
@@ -235,6 +237,7 @@
     #match-modal {
       display: none; position: fixed; inset: 0; z-index: 500;
       align-items: center; justify-content: center;
+      transition: opacity 0.28s ease;
     }
     #match-modal.open { display: flex; }
     .modal-backdrop {
@@ -328,6 +331,86 @@
     .pk-shot.scored { color: var(--green); border-color: var(--green); }
     .pk-shot.missed { color: var(--red); border-color: var(--red); opacity: 0.7; }
     .modal-empty { font-size: 0.72rem; color: var(--text-faint); text-align: center; padding: 20px 0; }
+    .odds-blurb { margin-top: 4px; }
+    .odds-blurb-q { font-size: 0.72rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .odds-blurb-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 4px; }
+    .odds-blurb-fill { height: 100%; background: var(--gold); border-radius: 3px; }
+    .odds-blurb-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-faint); margin-bottom: 8px; }
+    .odds-blurb-explain { font-size: 0.68rem; color: var(--text-sub); line-height: 1.5; background: rgba(0,0,0,0.03); border-radius: 6px; padding: 7px 9px; }
+
+    /* ── Bets & Tally ────────────────────────────────────────────── */
+    .bets-section {
+      max-width: 960px; margin: 32px auto 48px; padding: 0 24px;
+    }
+    .bets-title {
+      font-size: 1.05rem; font-weight: 800; color: var(--text);
+      margin-bottom: 18px; letter-spacing: -0.3px;
+    }
+    .tally-grid {
+      display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px;
+    }
+    .tally-row {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px;
+      font-size: 0.82rem;
+    }
+    .tally-debtor  { font-weight: 700; color: var(--red); }
+    .tally-owes    { color: var(--text-faint); }
+    .tally-creditor{ font-weight: 700; color: var(--green); }
+    .tally-amount  { margin-left: auto; font-weight: 800; color: var(--text); }
+    .tally-even    { color: var(--text-faint); font-style: italic; font-size: 0.78rem; }
+    .bets-empty    { color: var(--text-faint); font-size: 0.78rem; font-style: italic; }
+    .bet-match-group { margin-bottom: 16px; }
+    .bet-match-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+    }
+    .bet-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; margin-bottom: 5px;
+      font-size: 0.75rem; color: var(--text-sub); gap: 8px;
+    }
+    .bet-side   { font-weight: 600; color: var(--text); }
+    .bet-status { font-size: 0.68rem; white-space: nowrap; color: var(--text-faint); }
+    /* Modal bet form */
+    .modal-bets-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+    .modal-bet-row {
+      font-size: 0.7rem; color: var(--text-sub); margin-bottom: 5px; line-height: 1.4;
+    }
+    .bet-form { display: flex; flex-direction: column; gap: 8px; }
+    .bet-form-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .bet-form-vs { font-size: 0.65rem; color: var(--text-faint); text-align: center; }
+    .bet-select {
+      font-size: 0.68rem; color: var(--text); background: rgba(255,255,255,0.6);
+      border: 1px solid var(--border-mid); border-radius: 6px;
+      padding: 4px 6px; flex: 1; min-width: 0;
+    }
+    .bet-amount {
+      font-size: 0.68rem; color: var(--text); background: rgba(255,255,255,0.6);
+      border: 1px solid var(--border-mid); border-radius: 6px; padding: 4px 6px;
+    }
+    .bet-submit {
+      background: var(--gold); color: #fff; border: none; border-radius: 8px;
+      padding: 7px 14px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+      margin-top: 2px; transition: opacity 0.2s;
+    }
+    .bet-submit:hover { opacity: 0.85; }
+    .bet-form-label { font-size: 0.65rem; color: var(--text-faint); }
+    .bet-preview { font-size: 0.66rem; color: var(--text-sub); line-height: 1.7; background: rgba(0,0,0,0.03); border-radius: 6px; padding: 6px 9px; margin-top: 2px; }
+    .bet-row { flex-wrap: wrap; }
+    .bet-row-payout { width: 100%; font-size: 0.62rem; color: var(--text-faint); margin-top: 3px; }
+    .bet-delete {
+      background: none; border: 1px solid var(--border); border-radius: 5px;
+      font-size: 0.61rem; color: var(--text-faint); cursor: pointer; padding: 2px 7px;
+      margin-left: auto; flex-shrink: 0; transition: color 0.2s, border-color 0.2s;
+    }
+    .bet-delete:hover { border-color: var(--red); color: var(--red); }
+    .odds-payout-box { font-size: 0.66rem; color: var(--text-sub); line-height: 1.65; background: rgba(202,138,4,0.06); border: 1px solid rgba(202,138,4,0.22); border-radius: 7px; padding: 8px 11px; margin-top: 8px; }
+    .odds-payout-title { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.5px; color: var(--text-sub); text-transform: uppercase; margin-bottom: 4px; }
+    .bet-confirm { text-align: center; padding: 18px 0 10px; font-size: 0.88rem; font-weight: 700; color: var(--green); }
+    .bet-confirm-sub { text-align: center; font-size: 0.68rem; color: var(--text-faint); margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -340,6 +423,7 @@
       <div class="modal-back" id="modal-back">
         <button class="modal-close" onclick="closeMatchModal()">✕</button>
         <div id="modal-back-content"></div>
+        <div id="modal-bet-zone"></div>
       </div>
     </div>
   </div>
@@ -347,7 +431,8 @@
 
 <header>
   <h1>⚽ NCYSD World Cup 2026</h1>
-  <p>$20 buy-in &nbsp;·&nbsp; 5 teams each &nbsp;·&nbsp; Belgium = money back</p>
+  <p style="margin-top:8px;font-size:0.88rem;font-weight:700;color:var(--gold);letter-spacing:0.3px">⭐ Click any game to place bets & see live odds ⭐</p>
+  <p style="margin-top:5px;font-size:0.75rem;color:var(--text-faint)">All bets & earnings are tracked at the bottom of the page 💸</p>
 </header>
 
 <div class="legend" id="legend"></div>
@@ -355,6 +440,12 @@
 <div class="leaderboard-section">
   <div class="leaderboard-title">Leaderboard</div>
   <div class="leaderboard-grid" id="leaderboard"></div>
+</div>
+
+<div class="bets-section">
+  <div class="bets-title">💸 Bets & Tally</div>
+  <div class="tally-grid" id="tally-grid"><div class="bets-empty">No settled bets yet.</div></div>
+  <div id="bets-list"><div class="bets-empty">No bets placed yet. Click any match card to add one.</div></div>
 </div>
 
 <script>
@@ -848,9 +939,9 @@ function openMatchModal(matchNum) {
   card.classList.remove("flipped");
   front.innerHTML = buildModalFront(m);
   back.innerHTML  = '<div class="modal-empty">Loading…</div>';
+  // Open directly on the back — no front-face tease
+  card.classList.add("flipped");
   modal.classList.add("open");
-
-  setTimeout(() => card.classList.add("flipped"), 320);
 
   const noDataMsg = '<div class="modal-empty">No stats or betting odds available yet</div>';
 
@@ -867,13 +958,25 @@ function openMatchModal(matchNum) {
   } else {
     back.innerHTML = noDataMsg;
   }
+
+  // Populate bet zone (always shown, updated live by Firestore listener)
+  const betZone = document.getElementById("modal-bet-zone");
+  if (betZone) {
+    betZone.dataset.matchNum = matchNum;
+    betZone.innerHTML = buildModalBetsSection(matchNum);
+  }
 }
 
 function closeMatchModal() {
   const modal = document.getElementById("match-modal");
   const card  = document.getElementById("modal-card");
-  card.classList.remove("flipped");
-  setTimeout(() => modal.classList.remove("open"), 600);
+  // Fade out without flipping back so the front face never teases
+  modal.style.opacity = "0";
+  setTimeout(() => {
+    modal.classList.remove("open");
+    modal.style.opacity = "";
+    card.classList.remove("flipped");
+  }, 280);
 }
 
 async function fetchSummary(eventId) {
@@ -912,10 +1015,11 @@ function buildModalFront(m) {
     const pcts = impliedPcts(m.odds);
     oddsHTML = `
     <div class="modal-odds">
-      <div class="o-team"><div style="font-size:0.58rem;color:var(--text-faint);margin-bottom:2px">${tA}</div>${pcts.pctA !== null ? pcts.pctA + "%" : "–"}</div>
+      <div class="o-team"><div style="font-size:0.58rem;color:var(--text-faint);margin-bottom:2px">${tA} wins</div>${pcts.pctA !== null ? pcts.pctA + "%" : "–"}</div>
       <div class="o-draw"><div style="font-size:0.58rem;margin-bottom:2px">Draw</div>${pcts.pctDraw !== null ? pcts.pctDraw + "%" : "–"}</div>
-      <div class="o-team"><div style="font-size:0.58rem;color:var(--text-faint);margin-bottom:2px">${tB}</div>${pcts.pctB !== null ? pcts.pctB + "%" : "–"}</div>
-    </div>`;
+      <div class="o-team"><div style="font-size:0.58rem;color:var(--text-faint);margin-bottom:2px">${tB} wins</div>${pcts.pctB !== null ? pcts.pctB + "%" : "–"}</div>
+    </div>
+    <div style="font-size:0.6rem;color:var(--text-faint);text-align:center;padding:4px 0 2px;font-style:italic;">Vegas-implied chance each outcome happens</div>`;
   }
 
   return `
@@ -1005,30 +1109,53 @@ function buildModalBack(data, m) {
     if (pkB.length) html += renderPKs(pkB, statsTeams[1]?.team?.displayName || m.teamB || "");
   }
 
-  // Over/Under + BTTS (upcoming matches only)
-  if (m.status === "upcoming" && (m.oddsLine || m.oddsBtts)) {
-    html += `<div class="modal-section-title">📈 Betting Lines</div><div class="modal-stats-grid">`;
+  // Over/Under + betting (upcoming matches only)
+  if (m.status === "upcoming" && (m.oddsLine || m.oddsBtts || m.odds)) {
+    html += `<div class="modal-section-title">📈 Vegas Says</div>`;
     if (m.oddsLine) {
-      html += `
-        <div class="stat-val-a">${m.oddsLine.overPct}%</div>
-        <div class="stat-label">Over ${m.oddsLine.line} Goals</div>
-        <div class="stat-val-b">${m.oddsLine.underPct}%</div>
-        <div class="stat-bar-row">
-          <div class="stat-bar-a" style="width:${m.oddsLine.overPct}%"></div>
-          <div class="stat-bar-b" style="width:${m.oddsLine.underPct}%"></div>
-        </div>`;
+      const line = m.oddsLine.line;
+      const over = Math.ceil(line);
+      const under = Math.floor(line);
+      const highScore = m.oddsLine.overPct >= m.oddsLine.underPct;
+      html += `<div class="odds-blurb">
+        <div class="odds-blurb-q">Will this be a high-scoring game?</div>
+        <div class="odds-blurb-bar">
+          <div class="odds-blurb-fill" style="width:${m.oddsLine.overPct}%"></div>
+        </div>
+        <div class="odds-blurb-labels">
+          <span>${m.oddsLine.overPct}% chance of ${over}+ goals</span>
+          <span>${m.oddsLine.underPct}% chance of ${under} or fewer</span>
+        </div>
+        <div class="odds-blurb-explain">
+          Bookmakers lean <b>${highScore ? "high-scoring" : "low-scoring"}</b>.
+          If you bet the <b>over</b>, you win when ${over} or more total goals are scored.
+          If you bet the <b>under</b>, you win when ${under} or fewer are scored.
+        </div>
+      </div>
+      <div class="odds-payout-box">
+        <div class="odds-payout-title">💰 Over/Under Bet Payouts</div>
+        Payouts are odds-adjusted — the underdog pays out more than the favorite.
+        If you bet $20 on <b>Over</b> (${m.oddsLine.overPct}% likely), you'd win
+        <b>$${calcToWin(20, m.oddsLine.overPct, m.oddsLine.underPct).toFixed(2)}</b> if it hits.
+        If you bet $20 on <b>Under</b> (${m.oddsLine.underPct}% likely), you'd win
+        <b>$${calcToWin(20, m.oddsLine.underPct, m.oddsLine.overPct).toFixed(2)}</b> if it hits.
+        Enter a bet below to see your exact payout before locking it in.
+      </div>`;
     }
-    if (m.oddsBtts) {
-      html += `
-        <div class="stat-val-a">${m.oddsBtts.yesPct}%</div>
-        <div class="stat-label">Both Teams Score</div>
-        <div class="stat-val-b">${m.oddsBtts.noPct}%</div>
-        <div class="stat-bar-row">
-          <div class="stat-bar-a" style="width:${m.oddsBtts.yesPct}%"></div>
-          <div class="stat-bar-b" style="width:${m.oddsBtts.noPct}%"></div>
+    if (m.odds && m.status === "upcoming") {
+      const pcts = impliedPcts(m.odds);
+      if (pcts.pctA !== null && pcts.pctB !== null) {
+        const adjA = Math.round(pcts.pctA / (pcts.pctA + pcts.pctB) * 100);
+        const adjB = 100 - adjA;
+        html += `<div class="odds-payout-box" style="margin-top:6px">
+          <div class="odds-payout-title">💰 Win/Draw/Loss Bet Payouts</div>
+          Payouts are odds-adjusted — betting the underdog pays more. For a $20 bet:
+          <b>${m.teamA || "Team A"} wins</b> (${adjA}% likely) → win <b>$${calcToWin(20, adjA, adjB).toFixed(2)}</b>.
+          <b>${m.teamB || "Team B"} wins</b> (${adjB}% likely) → win <b>$${calcToWin(20, adjB, adjA).toFixed(2)}</b>.
+          A draw is a push — no money changes hands.
         </div>`;
+      }
     }
-    html += `</div>`;
   }
 
   return html || '<div class="modal-empty">No stats or betting odds available yet</div>';
@@ -1038,9 +1165,9 @@ function buildModalBack(data, m) {
 /* ── THE ODDS API ────────────────────────────────────────────────────────── */
 const ODDS_KEY = "8d41750fb07932bd3b95c0b32fa2bd1c";
 
-async function fetchOddsMarket(markets) {
+async function fetchOddsMarket(markets, regions = "us") {
   const r = await fetch(
-    `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_KEY}&regions=us&markets=${markets}&oddsFormat=american`
+    `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_KEY}&regions=${regions}&markets=${markets}&oddsFormat=american`
   );
   const data = await r.json();
   return Array.isArray(data) ? data : [];
@@ -1096,7 +1223,7 @@ function processOdds(oddsData) {
           const line = ov.point ?? 2.5;
           const rOv = rawImplied(ov.price), rUn = rawImplied(un?.price);
           const sum  = rOv + rUn || 1;
-          m.oddsLine = { line, overPct: Math.round(rOv / sum * 100), underPct: Math.round(rUn / sum * 100) };
+          m.oddsLine = { line, overPct: Math.round(rOv / sum * 100), underPct: Math.round(rUn / sum * 100), overPrice: ov.price, underPrice: un?.price ?? null };
         }
       }
 
@@ -1148,27 +1275,332 @@ async function mergeOddsData(a, b) {
   return Object.values(map);
 }
 
-async function refresh() {
+let oddsLoaded = false;
+
+async function loadOdds() {
+  if (oddsLoaded) return;
   try {
-    const [events, h2hData, extraData, outrightData] = await Promise.all([
-      fetchESPN(),
+    const [h2hData, extraData, outrightData] = await Promise.all([
       fetchOddsMarket("h2h").catch(() => []),
-      fetchOddsMarket("totals,btts").catch(() => []),
+      fetchOddsMarket("totals", "uk,eu").catch(() => []),
       fetchOutrights().catch(() => []),
     ]);
-    processEvents(events);
     processOdds(await mergeOddsData(h2hData, extraData));
     processOutrights(outrightData);
+    if (Object.values(state.matches).some(m => m.odds)) oddsLoaded = true;
+  } catch (e) {}
+}
+
+async function refresh() {
+  try {
+    const events = await fetchESPN();
+    processEvents(events);
+    await loadOdds();
     render();
     renderLeaderboard();
   } catch (e) {}
 }
+
+// Reload odds once per hour in case lines shift
+setInterval(() => { oddsLoaded = false; loadOdds().then(() => { render(); renderLeaderboard(); }); }, 60 * 60 * 1000);
 
 initState();
 render();
 renderLeaderboard();
 refresh();
 setInterval(refresh, 5 * 60 * 1000);
+
+/* ── ODDS-ADJUSTED BET HELPERS ───────────────────────────────────────────── */
+function getSidePcts(side1, side2, m) {
+  if (side1 === "over" || side1 === "under") {
+    if (!m?.oddsLine) return { pct1: null, pct2: null };
+    return {
+      pct1: side1 === "over" ? m.oddsLine.overPct : m.oddsLine.underPct,
+      pct2: side2 === "over" ? m.oddsLine.overPct : m.oddsLine.underPct,
+    };
+  }
+  if ((side1 === "teamA" || side1 === "teamB") && (side2 === "teamA" || side2 === "teamB")) {
+    if (!m?.odds) return { pct1: null, pct2: null };
+    const pcts = impliedPcts(m.odds);
+    const p1 = side1 === "teamA" ? (pcts.pctA || 0) : (pcts.pctB || 0);
+    const p2 = side2 === "teamA" ? (pcts.pctA || 0) : (pcts.pctB || 0);
+    const sum = p1 + p2 || 1;
+    return { pct1: Math.round(p1 / sum * 100), pct2: Math.round(p2 / sum * 100) };
+  }
+  return { pct1: null, pct2: null };
+}
+
+function calcToWin(stake, myPct, otherPct) {
+  if (!stake || !myPct || !otherPct) return stake || 0;
+  return +(stake * otherPct / myPct).toFixed(2);
+}
+
+function updateBetPreview(matchNum) {
+  const s1  = document.getElementById(`bf-s1-${matchNum}`)?.value;
+  const s2  = document.getElementById(`bf-s2-${matchNum}`)?.value;
+  const n1  = document.getElementById(`bf-n1-${matchNum}`)?.value;
+  const n2  = document.getElementById(`bf-n2-${matchNum}`)?.value;
+  const amt = +document.getElementById(`bf-amt-${matchNum}`)?.value || 0;
+  const el  = document.getElementById(`bf-preview-${matchNum}`);
+  if (!el) return;
+  if (!amt) { el.innerHTML = ""; return; }
+  const m = state.matches[+matchNum];
+  const { pct1, pct2 } = getSidePcts(s1, s2, m);
+  const toWin1 = calcToWin(amt, pct1, pct2);
+  const lines = [
+    `✅ If <b>${sideName(s1, m)}</b>: <b>${n1}</b> wins <b>$${toWin1.toFixed(2)}</b> from ${n2}`,
+    `✅ If <b>${sideName(s2, m)}</b>: <b>${n2}</b> wins <b>$${(+amt).toFixed(2)}</b> from ${n1}`,
+  ];
+  if (s1 === "teamA" || s1 === "teamB") {
+    lines.push(`🤝 If <b>Draw</b>: push — no money changes hands`);
+  }
+  el.innerHTML = lines.map(l => `<div>${l}</div>`).join("");
+}
+
+function deleteBet(betId, btn) {
+  if (btn.dataset.confirming === "1") {
+    db.collection("bets").doc(betId).delete().catch(() => {});
+  } else {
+    btn.dataset.confirming = "1";
+    btn.textContent = "Confirm? ✕";
+    btn.style.color = "var(--red)";
+    btn.style.borderColor = "var(--red)";
+    setTimeout(() => {
+      if (btn.dataset.confirming === "1") {
+        btn.dataset.confirming = "";
+        btn.textContent = "Delete";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      }
+    }, 3000);
+  }
+}
+
+/* ── FIREBASE & BETTING ──────────────────────────────────────────────────── */
+firebase.initializeApp({
+  apiKey: "AIzaSyAncdGYQgYvSAnU6tGZXCoq-cXuUBaA3yI",
+  authDomain: "worldcup2026-e05fb.firebaseapp.com",
+  projectId: "worldcup2026-e05fb",
+  storageBucket: "worldcup2026-e05fb.firebasestorage.app",
+  messagingSenderId: "547706260814",
+  appId: "1:547706260814:web:8782e668669db85c33621f"
+});
+const db = firebase.firestore();
+state.bets = [];
+
+function sideResult(side, m) {
+  if (!m || m.status !== "final") return "pending";
+  if (side === "teamA") return m.winner === "A" ? "win" : m.winner === null ? "push" : "loss";
+  if (side === "teamB") return m.winner === "B" ? "win" : m.winner === null ? "push" : "loss";
+  if (side === "draw")  return m.winner === null ? "win" : "loss";
+  if (side === "over" || side === "under") {
+    if (m.scoreA == null || m.scoreB == null || !m.oddsLine) return "pending";
+    const total = +m.scoreA + +m.scoreB;
+    if (total === m.oddsLine.line) return "push";
+    return ((side === "over") === (total > m.oddsLine.line)) ? "win" : "loss";
+  }
+  return "pending";
+}
+
+function sideName(side, m) {
+  if (side === "teamA")  return `${m?.teamA || "Team A"} wins`;
+  if (side === "teamB")  return `${m?.teamB || "Team B"} wins`;
+  if (side === "draw")   return "Draw";
+  if (side === "over")   return `Over ${m?.oddsLine?.line ?? 2.5} goals`;
+  if (side === "under")  return `Under ${m?.oddsLine?.line ?? 2.5} goals`;
+  return side;
+}
+
+function computeTally() {
+  const tally = {};
+  for (const bet of state.bets) {
+    const m = state.matches[bet.matchNum];
+    const r1 = sideResult(bet.side1, m);
+    if (r1 === "pending" || r1 === "push") continue;
+    const stake = +(bet.amount) || 0;
+    if (!stake) continue;
+    // toWin1 = what bettor1 wins if side1 hits; bettor2 wins `stake` if side2 hits
+    const toWin1 = bet.toWin1 != null ? +bet.toWin1 : stake;
+    const [a, b] = [bet.bettor1, bet.bettor2].sort();
+    const key = `${a}|${b}`;
+    if (!tally[key]) tally[key] = { a, b, net: 0 };
+    const winner   = r1 === "win" ? bet.bettor1 : bet.bettor2;
+    const winAmt   = r1 === "win" ? toWin1 : stake;
+    tally[key].net += winner === a ? winAmt : -winAmt;
+  }
+  return Object.values(tally);
+}
+
+function renderTally() {
+  const el = document.getElementById("tally-grid");
+  if (!el) return;
+  const rows = computeTally().filter(t => t.net !== 0)
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  if (!rows.length) {
+    el.innerHTML = '<div class="bets-empty">Tally appears once bets settle.</div>';
+    return;
+  }
+  el.innerHTML = rows.map(t => {
+    const [debtor, creditor, amt] = t.net > 0 ? [t.b, t.a, t.net] : [t.a, t.b, -t.net];
+    return `<div class="tally-row">
+      <span class="tally-debtor">${debtor}</span>
+      <span class="tally-owes">owes</span>
+      <span class="tally-creditor">${creditor}</span>
+      <span class="tally-amount">$${amt.toFixed(2)}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderBets() {
+  const el = document.getElementById("bets-list");
+  if (!el) return;
+  if (!state.bets.length) {
+    el.innerHTML = '<div class="bets-empty">No bets placed yet. Click any match card to add one.</div>';
+    return;
+  }
+  const byMatch = {};
+  for (const bet of state.bets) {
+    if (!byMatch[bet.matchNum]) byMatch[bet.matchNum] = [];
+    byMatch[bet.matchNum].push(bet);
+  }
+  el.innerHTML = Object.entries(byMatch).map(([num, bets]) => {
+    const m = state.matches[+num];
+    const label = `${m?.teamA || "TBD"} vs ${m?.teamB || "TBD"}`;
+    const rows = bets.map(bet => {
+      const r1 = sideResult(bet.side1, m);
+      const icon = r1 === "pending" ? "⏳" : r1 === "push" ? "🤝" : r1 === "win" ? "🏆" : "❌";
+      const stake  = +(bet.amount) || 0;
+      const toWin1 = bet.toWin1 != null ? +bet.toWin1 : stake;
+      const winner = r1 === "win" ? bet.bettor1 : r1 === "loss" ? bet.bettor2 : null;
+      const winAmt = winner === bet.bettor1 ? toWin1 : stake;
+      const { pct1, pct2 } = getSidePcts(bet.side1, bet.side2, m);
+      const pct1Str = pct1 != null ? ` ${pct1}%` : "";
+      const pct2Str = pct2 != null ? ` ${pct2}%` : "";
+      const side1Label = sideName(bet.side1, m);
+      const side2Label = sideName(bet.side2, m);
+      const amtStr = stake ? ` · $${stake}` : "";
+      const payoutLine = stake && r1 === "pending"
+        ? `<div class="bet-row-payout">If ${side1Label}: ${bet.bettor1} collects $${toWin1.toFixed(2)} · If ${side2Label}: ${bet.bettor2} collects $${stake.toFixed(2)}</div>`
+        : (winner ? `<div class="bet-row-payout" style="color:var(--green)">${winner} collects $${winAmt.toFixed(2)}</div>` : "");
+      return `<div class="bet-row">
+        <span>${icon} <b>${bet.bettor1}</b> <span class="bet-side">(${side1Label}${pct1Str})</span> vs <b>${bet.bettor2}</b> <span class="bet-side">(${side2Label}${pct2Str})</span>${amtStr}</span>
+        ${bet.id ? `<button class="bet-delete" onclick="deleteBet('${bet.id}', this)">Delete</button>` : ""}
+        ${payoutLine}
+      </div>`;
+    }).join("");
+    return `<div class="bet-match-group"><div class="bet-match-label">${label}</div>${rows}</div>`;
+  }).join("");
+}
+
+function buildModalBetsSection(matchNum) {
+  const m = state.matches[matchNum];
+  const matchBets = state.bets.filter(b => +b.matchNum === +matchNum);
+
+  const sideOpts = [];
+  if (m?.teamA) sideOpts.push({ v: "teamA", l: `${m.teamA} wins` });
+  sideOpts.push({ v: "draw", l: "Draw" });
+  if (m?.teamB) sideOpts.push({ v: "teamB", l: `${m.teamB} wins` });
+  if (m?.oddsLine) {
+    sideOpts.push({ v: "over",  l: `Over ${m.oddsLine.line} goals` });
+    sideOpts.push({ v: "under", l: `Under ${m.oddsLine.line} goals` });
+  }
+  const sideHTML  = (sel) => sideOpts.map(o => `<option value="${o.v}"${o.v===sel?" selected":""}>${o.l}</option>`).join("");
+  const nameHTML  = OWNERS.map(o => `<option value="${o.name}">${o.name}</option>`).join("");
+
+  const existingHTML = matchBets.length ? `
+    <hr class="modal-bets-divider">
+    <div class="modal-section-title">💰 Bets on this game</div>
+    ${matchBets.map(bet => {
+      const r1 = sideResult(bet.side1, m);
+      const icon = r1==="pending"?"⏳":r1==="win"?"🏆":r1==="push"?"🤝":"❌";
+      const stake  = +(bet.amount) || 0;
+      const toWin1 = bet.toWin1 != null ? +bet.toWin1 : stake;
+      const winner = r1==="win" ? bet.bettor1 : r1==="loss" ? bet.bettor2 : null;
+      const winAmt = winner === bet.bettor1 ? toWin1 : stake;
+      const amtStr = stake ? ` · $${stake}` : "";
+      const sub = r1 === "pending" && stake
+        ? `<span style="font-size:0.6rem;color:var(--text-faint)"> (${bet.bettor1} wins $${toWin1.toFixed(2)} · ${bet.bettor2} wins $${stake.toFixed(2)})</span>`
+        : (winner ? ` · <span style="color:var(--green)">🏆 ${winner} collects $${winAmt.toFixed(2)}</span>` : "");
+      return `<div class="modal-bet-row" style="display:flex;align-items:baseline;justify-content:space-between;gap:6px">
+        <span>${icon} <b>${bet.bettor1}</b> (${sideName(bet.side1,m)}) vs <b>${bet.bettor2}</b> (${sideName(bet.side2,m)})${amtStr}${sub}</span>
+        ${bet.id ? `<button class="bet-delete" onclick="deleteBet('${bet.id}', this)" style="flex-shrink:0">Delete</button>` : ""}
+      </div>`;
+    }).join("")}` : "";
+
+  const formHTML = m?.status === "upcoming" ? `
+    <hr class="modal-bets-divider">
+    <div class="modal-section-title">🎰 Place a bet</div>
+    <div class="bet-form">
+      <div class="bet-form-row">
+        <select class="bet-select" id="bf-n1-${matchNum}">${nameHTML}</select>
+        <span class="bet-form-label">takes</span>
+        <select class="bet-select" id="bf-s1-${matchNum}" onchange="updateBetPreview(${matchNum})">${sideHTML("teamA")}</select>
+      </div>
+      <div class="bet-form-vs">— vs —</div>
+      <div class="bet-form-row">
+        <select class="bet-select" id="bf-n2-${matchNum}">${nameHTML}</select>
+        <span class="bet-form-label">takes</span>
+        <select class="bet-select" id="bf-s2-${matchNum}" onchange="updateBetPreview(${matchNum})">${sideHTML("teamB")}</select>
+      </div>
+      <div class="bet-form-row">
+        <span class="bet-form-label">Bettor 1 risks $</span>
+        <input class="bet-amount" id="bf-amt-${matchNum}" type="number" min="0" step="1" placeholder="0" oninput="updateBetPreview(${matchNum})">
+      </div>
+      <div id="bf-preview-${matchNum}" class="bet-preview"></div>
+      <button class="bet-submit" onclick="submitBet(${matchNum})">Lock it in 🔒</button>
+    </div>` : "";
+
+  return existingHTML + formHTML;
+}
+
+async function submitBet(matchNum) {
+  const n1  = document.getElementById(`bf-n1-${matchNum}`)?.value;
+  const s1  = document.getElementById(`bf-s1-${matchNum}`)?.value;
+  const n2  = document.getElementById(`bf-n2-${matchNum}`)?.value;
+  const s2  = document.getElementById(`bf-s2-${matchNum}`)?.value;
+  const amt = +document.getElementById(`bf-amt-${matchNum}`)?.value || 0;
+  if (n1 === n2) { alert("Pick two different people!"); return; }
+  const m = state.matches[+matchNum];
+  const { pct1, pct2 } = getSidePcts(s1, s2, m);
+  const toWin1 = calcToWin(amt, pct1, pct2);
+  const btn = document.getElementById(`bf-amt-${matchNum}`)?.closest(".bet-form")?.querySelector(".bet-submit");
+  if (btn) btn.textContent = "Saving…";
+  await db.collection("bets").add({
+    matchNum: +matchNum, bettor1: n1, side1: s1,
+    bettor2: n2, side2: s2, amount: amt,
+    toWin1: toWin1,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  // Clear modal content and show confirmation, then close the card
+  const backContent = document.getElementById("modal-back-content");
+  const betZone     = document.getElementById("modal-bet-zone");
+  if (backContent) backContent.innerHTML = "";
+  if (betZone) betZone.innerHTML = `
+    <div style="text-align:center;padding:40px 0 12px;font-size:1.15rem;font-weight:800;color:var(--green)">✅ Locked in!</div>
+    <div style="text-align:center;font-size:0.72rem;color:var(--text-faint);margin-top:4px">${n1} vs ${n2} · bet saved</div>
+  `;
+  window._betConfirming = true;
+  setTimeout(() => {
+    window._betConfirming = false;
+    closeMatchModal();
+  }, 1300);
+}
+
+function loadBets() {
+  db.collection("bets").orderBy("createdAt", "asc").onSnapshot(snap => {
+    state.bets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderBets();
+    renderTally();
+    // Refresh modal bets if open (skip if confirmation message is showing)
+    const modal = document.getElementById("match-modal");
+    const betZone = document.getElementById("modal-bet-zone");
+    if (modal?.classList.contains("open") && betZone?.dataset.matchNum && !window._betConfirming) {
+      betZone.innerHTML = buildModalBetsSection(+betZone.dataset.matchNum);
+    }
+  });
+}
+
+loadBets();
 </script>
 </body>
 </html>
