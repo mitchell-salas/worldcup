@@ -532,8 +532,19 @@ async function fetchESPN() {
 }
 
 /* ── PROCESS ESPN EVENTS INTO STATE ──────────────────────────────────────── */
+function buildDateLookup() {
+  const map = {};
+  for (const [num, m] of Object.entries(state.matches)) {
+    if (!m.date) continue;
+    if (!map[m.date]) map[m.date] = [];
+    map[m.date].push(+num);
+  }
+  return map;
+}
+
 function processEvents(events) {
-  const lookup = buildTeamLookup();
+  const lookup     = buildTeamLookup();
+  const dateLookup = buildDateLookup();
 
   for (const ev of events) {
     const comp = ev.competitions?.[0];
@@ -549,18 +560,40 @@ function processEvents(events) {
     const wB = c1.winner === true;
     const espnStatus = ev.status?.type?.name || "";
 
-    // Find which bracket slot this event belongs to
+    // Primary: match by team name
     const slotA = lookup[norm(tA)];
     const slotB = lookup[norm(tB)];
-    const slotNum = slotA ?? slotB;
+    let slotNum = slotA ?? slotB;
+
+    // Fallback: match by date + approximate ET hour when both teams were TBD
+    if (!slotNum && ev.date) {
+      const evDate = ev.date.slice(0, 10).replace(/-/g, "");
+      const dateSlots = dateLookup[evDate] || [];
+      const utcHour = new Date(ev.date).getUTCHours();
+      const etHour  = (utcHour - 4 + 24) % 24; // EDT summer offset
+      const unset   = dateSlots.filter(n => !state.matches[n].teamA && !state.matches[n].teamB);
+      if (unset.length === 1) {
+        slotNum = unset[0];
+      } else {
+        slotNum = unset.find(n => {
+          const slot = state.matches[n];
+          if (!slot.timeET) return false;
+          const [time, period] = slot.timeET.split(" ");
+          let h = +time.split(":")[0];
+          if (period === "PM" && h !== 12) h += 12;
+          if (period === "AM" && h === 12) h = 0;
+          return Math.abs(h - etHour) <= 1;
+        });
+      }
+    }
+
     if (!slotNum || !state.matches[slotNum]) continue;
 
     const m = state.matches[slotNum];
 
     // Fill unknown teams
-    if (!m.teamA || norm(m.teamA) === norm(tA)) { m.teamA = tA; }
-    if (!m.teamB || norm(m.teamB) === norm(tB)) { m.teamB = tB; }
-    // If we found via one team and the other was TBD, fill it in
+    if (!m.teamA) { m.teamA = tA; lookup[norm(tA)] = slotNum; }
+    if (!m.teamB) { m.teamB = tB; lookup[norm(tB)] = slotNum; }
     if (slotA && !slotB) { m.teamB = tB; lookup[norm(tB)] = slotNum; }
     if (slotB && !slotA) { m.teamA = tA; lookup[norm(tA)] = slotNum; }
 
