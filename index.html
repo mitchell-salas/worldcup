@@ -640,6 +640,30 @@ async function fetchESPN() {
   return results.flat();
 }
 
+/* ── ROUND HELPERS ───────────────────────────────────────────────────────── */
+const ROUND_BY_SLOT = (() => {
+  const m = {};
+  [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88].forEach(n => m[n] = "r32");
+  [89,90,91,92,93,94,95,96].forEach(n => m[n] = "r16");
+  [97,98,99,100].forEach(n => m[n] = "qf");
+  [101,102].forEach(n => m[n] = "sf");
+  m[104] = "final";
+  return m;
+})();
+
+function evRoundFromDate(isoDate) {
+  // Convert UTC datetime → ET date string (UTC-4 summer), then classify round
+  const etMs  = new Date(isoDate).getTime() - 4 * 60 * 60 * 1000;
+  const etStr = new Date(etMs).toISOString().slice(0, 10).replace(/-/g, "");
+  const d = +etStr;
+  if (d >= 20260628 && d <= 20260703) return { round: "r32", etDate: etStr };
+  if (d >= 20260704 && d <= 20260707) return { round: "r16", etDate: etStr };
+  if (d >= 20260709 && d <= 20260710) return { round: "qf",  etDate: etStr };
+  if (d >= 20260714 && d <= 20260715) return { round: "sf",  etDate: etStr };
+  if (d === 20260719)                 return { round: "final", etDate: etStr };
+  return { round: null, etDate: etStr };
+}
+
 /* ── PROCESS ESPN EVENTS INTO STATE ──────────────────────────────────────── */
 function buildDateLookup() {
   const map = {};
@@ -669,18 +693,24 @@ function processEvents(events) {
     const wB = c1.winner === true;
     const espnStatus = ev.status?.type?.name || "";
 
-    // Primary: match by team name
+    const { round: evRound, etDate: evDate } = ev.date ? evRoundFromDate(ev.date) : {};
+
+    // Primary: match by team name — but only if the slot is in the same round
     const slotA = lookup[norm(tA)];
     const slotB = lookup[norm(tB)];
     let slotNum = slotA ?? slotB;
+    if (slotNum && evRound && ROUND_BY_SLOT[slotNum] !== evRound) slotNum = null;
 
-    // Fallback: match by date + approximate ET hour when both teams were TBD
-    if (!slotNum && ev.date) {
-      const evDate = ev.date.slice(0, 10).replace(/-/g, "");
+    // Fallback: match by ET date + approximate ET hour when both teams were TBD
+    if (!slotNum && evDate) {
       const dateSlots = dateLookup[evDate] || [];
       const utcHour = new Date(ev.date).getUTCHours();
-      const etHour  = (utcHour - 4 + 24) % 24; // EDT summer offset
-      const unset   = dateSlots.filter(n => !state.matches[n].teamA && !state.matches[n].teamB);
+      const etHour  = (utcHour - 4 + 24) % 24;
+      // Only consider slots in the same round as this event
+      const unset = dateSlots.filter(n =>
+        (!evRound || ROUND_BY_SLOT[n] === evRound) &&
+        !state.matches[n].teamA && !state.matches[n].teamB
+      );
       if (unset.length === 1) {
         slotNum = unset[0];
       } else {
