@@ -536,21 +536,21 @@ const BRACKET = {
 /* ── INITIAL MATCH DATA (from worldcupwiki — partial teams known Jun 25) ── */
 const INITIAL = {
   73: {teamA:"South Africa", teamB:"Canada",      date:"20260628", timeET:"3:00 PM"},
-  74: {teamA:"Germany",      teamB:null,           date:"20260629", timeET:"4:30 PM"},
-  75: {teamA:null,           teamB:"Morocco",      date:"20260629", timeET:"9:00 PM"},
-  76: {teamA:"Brazil",       teamB:null,           date:"20260629", timeET:"1:00 PM"},
-  77: {teamA:null,           teamB:null,           date:"20260630", timeET:"5:00 PM"},
-  78: {teamA:null,           teamB:null,           date:"20260630", timeET:"1:00 PM"},
-  79: {teamA:"Mexico",       teamB:null,           date:"20260630", timeET:"9:00 PM"},
-  80: {teamA:null,           teamB:null,           date:"20260701", timeET:"12:00 PM"},
-  81: {teamA:"USA",          teamB:null,           date:"20260701", timeET:"8:00 PM"},
-  82: {teamA:null,           teamB:null,           date:"20260701", timeET:"4:00 PM"},
-  83: {teamA:null,           teamB:null,           date:"20260702", timeET:"7:00 PM"},
-  84: {teamA:null,           teamB:null,           date:"20260702", timeET:"3:00 PM"},
-  85: {teamA:"Switzerland",  teamB:null,           date:"20260702", timeET:"11:00 PM"},
-  86: {teamA:"Argentina",    teamB:null,           date:"20260703", timeET:"6:00 PM"},
-  87: {teamA:null,           teamB:null,           date:"20260703", timeET:"9:30 PM"},
-  88: {teamA:null,           teamB:null,           date:"20260703", timeET:"2:00 PM"},
+  74: {teamA:"Germany",      teamB:"Paraguay",    date:"20260629", timeET:"4:30 PM"},
+  75: {teamA:"Netherlands",  teamB:"Morocco",     date:"20260629", timeET:"9:00 PM"},
+  76: {teamA:"Brazil",       teamB:"Japan",       date:"20260629", timeET:"1:00 PM"},
+  77: {teamA:"France",       teamB:"Sweden",      date:"20260630", timeET:"5:00 PM"},
+  78: {teamA:"Ivory Coast",  teamB:"Norway",      date:"20260630", timeET:"1:00 PM"},
+  79: {teamA:"Mexico",       teamB:"Ecuador",     date:"20260630", timeET:"9:00 PM"},
+  80: {teamA:"England",      teamB:"Congo",       date:"20260701", timeET:"12:00 PM"},
+  81: {teamA:"USA",          teamB:"Bosnia",      date:"20260701", timeET:"8:00 PM"},
+  82: {teamA:"Belgium",      teamB:"Senegal",     date:"20260701", timeET:"4:00 PM"},
+  83: {teamA:"Portugal",     teamB:"Croatia",     date:"20260702", timeET:"7:00 PM"},
+  84: {teamA:"Spain",        teamB:"Austria",     date:"20260702", timeET:"3:00 PM"},
+  85: {teamA:"Switzerland",  teamB:"Algeria",     date:"20260702", timeET:"11:00 PM"},
+  86: {teamA:"Argentina",    teamB:"Cape Verde",  date:"20260703", timeET:"6:00 PM"},
+  87: {teamA:"Colombia",     teamB:"Ghana",       date:"20260703", timeET:"9:30 PM"},
+  88: {teamA:"Australia",    teamB:"Egypt",       date:"20260703", timeET:"2:00 PM"},
   89:  {date:"20260704", timeET:"5:00 PM"},
   90:  {date:"20260704", timeET:"1:00 PM"},
   91:  {date:"20260705", timeET:"4:00 PM"},
@@ -594,9 +594,12 @@ function norm(s) { return s.toLowerCase().replace(/[^a-z]/g, ""); }
 const ESPN_TO_MINE = {
   "unitedstates": "USA",
   "cotedivoire":  "Ivory Coast",
-  "curacao":      "Curacao",       // strips ç→ same
+  "ivorycoast":   "Ivory Coast",
+  "curacao":      "Curacao",
   "bosniaandherzegovina": "Bosnia",
+  "bosniaherzegovina":    "Bosnia",
   "drcongo":      "Congo",
+  "congodr":      "Congo",
   "republicofcongo": "Congo",
   "capeverde":    "Cape Verde",
   "southkorea":   "South Korea",
@@ -652,9 +655,13 @@ const ROUND_BY_SLOT = (() => {
 })();
 
 function evRoundFromDate(isoDate) {
-  // Convert UTC datetime → ET date string (UTC-4 summer), then classify round
-  const etMs  = new Date(isoDate).getTime() - 4 * 60 * 60 * 1000;
-  const etStr = new Date(etMs).toISOString().slice(0, 10).replace(/-/g, "");
+  // Regex parse to avoid browser-specific ISO 8601 quirks (e.g. Safari + no seconds)
+  const m = isoDate && isoDate.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return { round: null, etDate: null };
+  const utcMs = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]);
+  const etMs  = utcMs - 4 * 60 * 60 * 1000;
+  const etD   = new Date(etMs);
+  const etStr = `${etD.getUTCFullYear()}${String(etD.getUTCMonth()+1).padStart(2,"0")}${String(etD.getUTCDate()).padStart(2,"0")}`;
   const d = +etStr;
   if (d >= 20260628 && d <= 20260703) return { round: "r32", etDate: etStr };
   if (d >= 20260704 && d <= 20260707) return { round: "r16", etDate: etStr };
