@@ -311,6 +311,14 @@
       font-size: 0.62rem; color: var(--text-faint); text-align: center;
       border-top: 1px solid var(--border); padding-top: 8px; letter-spacing: 0.3px;
     }
+    .live-stats { margin-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+    .live-stat-row { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; }
+    .live-stat-label { color: var(--text-faint); text-align: center; flex: 0 0 70px; font-size: 0.6rem; }
+    .live-stat-val { font-weight: 700; min-width: 26px; text-align: right; color: var(--text); }
+    .live-stat-val.right { text-align: left; }
+    .live-stat-bar { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .live-stat-fill { height: 100%; background: var(--gold); border-radius: 3px; }
+    .live-clock { text-align: center; font-size: 0.72rem; font-weight: 700; color: #e03030; margin-top: 6px; letter-spacing: 0.5px; }
     .modal-section-title {
       font-size: 0.62rem; font-weight: 700; letter-spacing: 1px;
       color: var(--text-sub); text-transform: uppercase;
@@ -758,6 +766,19 @@ function processEvents(events) {
     } else {
       m.pkA = null; m.pkB = null;
     }
+    // Live match stats (possession, shots, corners, fouls)
+    const compStatus = comp.status || {};
+    m.clock  = m.status === "live" ? (compStatus.displayClock || null) : null;
+    m.period = compStatus.period ?? null;
+    const extractStats = c => {
+      const s = {};
+      for (const st of (c.statistics || [])) s[st.name] = st.displayValue;
+      return s;
+    };
+    if (m.status === "live" || m.status === "final") {
+      m.statsA = extractStats(c0);
+      m.statsB = extractStats(c1);
+    }
 
     const v = comp.venue;
     if (v) {
@@ -1108,10 +1129,43 @@ function buildModalFront(m) {
     : `<span class="score" style="opacity:0.2">–</span>`;
 
   let meta = "";
-  if (m.status === "live")       meta = "🔴 LIVE";
+  if (m.status === "live") {
+    const periodLabel = m.period >= 5 ? " · Pens" : m.period >= 3 ? " · ET" : "";
+    meta = `🔴 LIVE · ${m.clock || ""}${periodLabel}`;
+  }
   else if (m.status === "final") meta = `FINAL${pkSuffix} · ${formatDate(m.date)}`;
   else if (m.timeET)             meta = `${formatDate(m.date)} · ${etToPT(m.timeET)}`;
   if (m.venue) meta += (meta ? " · " : "") + m.venue;
+
+  // Live match stats bar
+  let liveStatsHTML = "";
+  if (m.status === "live" && m.statsA && m.statsB) {
+    const sA = m.statsA, sB = m.statsB;
+    const statRow = (label, keyA, keyB, pct = false) => {
+      const vA = parseFloat(sA[keyA] ?? 0), vB = parseFloat(sB[keyB] ?? 0);
+      const total = vA + vB || 1;
+      const fillPct = pct ? vA : Math.round(vA / total * 100);
+      return `<div class="live-stat-row">
+        <span class="live-stat-val">${pct ? vA.toFixed(0)+"%" : Math.round(vA)}</span>
+        <span class="live-stat-label">${label}</span>
+        <div class="live-stat-bar"><div class="live-stat-fill" style="width:${fillPct}%"></div></div>
+        <span class="live-stat-val right">${pct ? vB.toFixed(0)+"%" : Math.round(vB)}</span>
+      </div>`;
+    };
+    liveStatsHTML = `<div class="live-stats">
+      <div class="live-stat-row" style="font-size:0.6rem;color:var(--text-faint);font-weight:600">
+        <span style="min-width:26px;text-align:right">${tA}</span>
+        <span style="flex:0 0 70px;text-align:center"></span>
+        <div style="flex:1"></div>
+        <span style="min-width:26px">${tB}</span>
+      </div>
+      ${statRow("Possession", "possessionPct", "possessionPct", true)}
+      ${statRow("Shots", "totalShots", "totalShots")}
+      ${statRow("On Target", "shotsOnTarget", "shotsOnTarget")}
+      ${statRow("Corners", "wonCorners", "wonCorners")}
+      ${statRow("Fouls", "foulsCommitted", "foulsCommitted")}
+    </div>`;
+  }
 
   let oddsHTML = "";
   if (m.odds && m.status === "upcoming") {
@@ -1138,6 +1192,7 @@ function buildModalFront(m) {
       </div>
     </div>
     ${meta ? `<div class="modal-meta">${meta}</div>` : ""}
+    ${liveStatsHTML}
     ${oddsHTML}`;
 }
 
