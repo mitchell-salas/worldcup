@@ -746,10 +746,18 @@ function processEvents(events) {
     m.eventId = ev.id || null;
     m.scoreA = sA;
     m.scoreB = sB;
-    m.status = espnStatus === "STATUS_FULL_TIME"    ? "final"
-             : espnStatus === "STATUS_IN_PROGRESS"  ? "live"
-             : "upcoming";
+    const isFinal = espnStatus === "STATUS_FULL_TIME" || espnStatus === "STATUS_FINAL_PEN"
+                 || espnStatus === "STATUS_FINAL_AET" || espnStatus === "STATUS_FINAL";
+    m.status = isFinal ? "final" : espnStatus === "STATUS_IN_PROGRESS" ? "live" : "upcoming";
     m.winner = wA ? "A" : wB ? "B" : null;
+    // Capture PK shootout scores when game was decided by penalties
+    const pkA = c0.shootoutScore != null ? +c0.shootoutScore : null;
+    const pkB = c1.shootoutScore != null ? +c1.shootoutScore : null;
+    if (pkA != null && pkB != null && espnStatus === "STATUS_FINAL_PEN") {
+      m.pkA = pkA; m.pkB = pkB;
+    } else {
+      m.pkA = null; m.pkB = null;
+    }
 
     const v = comp.venue;
     if (v) {
@@ -872,7 +880,10 @@ function matchCardHTML(matchNum) {
   const footerCls = m.status === "live" ? "live" : m.status === "final" ? "final" : "";
   let footer = "";
   if (m.status === "live")       footer = "🔴 LIVE";
-  else if (m.status === "final") footer = `FINAL · ${formatDate(m.date)}`;
+  else if (m.status === "final") {
+    const pkSuffix = (m.pkA != null && m.pkB != null) ? ` (${m.pkA}-${m.pkB} pens)` : "";
+    footer = `FINAL${pkSuffix} · ${formatDate(m.date)}`;
+  }
   else if (m.timeET)             footer = `${formatDate(m.date)} · ${etToPT(m.timeET)}`;
 
   return `<div class="match${hasWinner ? " has-winner" : ""}" onclick="openMatchModal(${matchNum})" title="Click for match details">
@@ -1088,6 +1099,7 @@ function buildModalFront(m) {
   const owA  = OWNERSHIP[tA] || "";
   const owB  = OWNERSHIP[tB] || "";
 
+  const pkSuffix = (m.pkA != null && m.pkB != null) ? ` (${m.pkA}-${m.pkB} pens)` : "";
   const scoreBlock = m.scoreA != null
     ? `<span class="score">${m.scoreA}</span>`
     : `<span class="score" style="opacity:0.2">–</span>`;
@@ -1097,7 +1109,7 @@ function buildModalFront(m) {
 
   let meta = "";
   if (m.status === "live")       meta = "🔴 LIVE";
-  else if (m.status === "final") meta = `FINAL · ${formatDate(m.date)}`;
+  else if (m.status === "final") meta = `FINAL${pkSuffix} · ${formatDate(m.date)}`;
   else if (m.timeET)             meta = `${formatDate(m.date)} · ${etToPT(m.timeET)}`;
   if (m.venue) meta += (meta ? " · " : "") + m.venue;
 
