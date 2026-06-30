@@ -762,6 +762,33 @@ function processEvents(events) {
         m.venue = v.fullName;
       }
     }
+
+    // Pull odds directly from ESPN (DraftKings lines embedded in scoreboard)
+    const eo = comp.odds?.[0];
+    if (eo && m.status === "upcoming") {
+      const c0IsHome = c0.homeAway === "home";
+      const mlHome = parseFloat(eo.moneyline?.home?.close?.odds ?? eo.moneyline?.home?.open?.odds ?? 0);
+      const mlAway = parseFloat(eo.moneyline?.away?.close?.odds ?? eo.moneyline?.away?.open?.odds ?? 0);
+      const mlDraw = parseFloat(eo.drawOdds?.moneyLine ?? 0) || null;
+      if (mlHome && mlAway) {
+        m.odds = {
+          priceA: c0IsHome ? mlHome : mlAway,
+          priceB: c0IsHome ? mlAway : mlHome,
+          priceDraw: mlDraw,
+        };
+      }
+      const tot = eo.total;
+      if (tot) {
+        const ovOdds = parseFloat(tot.over?.close?.odds  ?? tot.over?.open?.odds  ?? 0);
+        const unOdds = parseFloat(tot.under?.close?.odds ?? tot.under?.open?.odds ?? 0);
+        const line   = eo.overUnder ?? parseFloat((tot.over?.close?.line ?? tot.over?.open?.line ?? "2.5").replace(/[oOuU]/g,""));
+        if (ovOdds && unOdds) {
+          const rOv = rawImplied(ovOdds), rUn = rawImplied(unOdds);
+          const sum  = rOv + rUn || 1;
+          m.oddsLine = { line, overPct: Math.round(rOv/sum*100), underPct: Math.round(rUn/sum*100), overPrice: ovOdds, underPrice: unOdds };
+        }
+      }
+    }
   }
 }
 
@@ -1368,7 +1395,14 @@ let oddsLoaded = false;
 async function loadOdds() {
   if (oddsLoaded) return;
 
-  // Try localStorage cache first — avoids API calls on every page load/refresh
+  // ESPN odds are already populated by processEvents — mark done so we
+  // don't hammer the quota-exhausted Odds API on every refresh cycle
+  if (Object.values(state.matches).some(m => m.odds || m.oddsLine)) {
+    oddsLoaded = true;
+    return;
+  }
+
+  // Try localStorage cache first (Odds API data from a prior successful fetch)
   const cached = readOddsCache();
   if (cached) {
     const merged = await mergeOddsData(cached.h2h || [], cached.totals || []);
@@ -1380,7 +1414,7 @@ async function loadOdds() {
     }
   }
 
-  // Cache miss or empty — fetch from API and save
+  // Last resort: fetch from The Odds API and cache if we get real data
   try {
     const [h2hData, extraData, outrightData] = await Promise.all([
       fetchOddsMarket("h2h").catch(() => []),
@@ -1389,7 +1423,8 @@ async function loadOdds() {
     ]);
     processOdds(await mergeOddsData(h2hData, extraData));
     processOutrights(outrightData);
-    if (Object.values(state.matches).some(m => m.odds || m.oddsLine)) {
+    const hasApiData = h2hData.length > 0 || extraData.length > 0;
+    if (hasApiData && Object.values(state.matches).some(m => m.odds || m.oddsLine)) {
       oddsLoaded = true;
       writeOddsCache(h2hData, extraData, outrightData);
     }
